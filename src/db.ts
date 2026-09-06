@@ -129,6 +129,34 @@ db.exec(`
   )
 `);
 
+// Misiones con vencimiento corto (ej. "compra 3 veces esta semana = +20
+// estrellas"): el progreso NO se guarda aparte, se calcula contando las
+// compras del cliente dentro de [starts_at, ends_at] — así nunca se
+// desincroniza del historial real. mission_claims solo registra quién ya
+// cobró la recompensa, para no pagarla dos veces.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS missions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    body TEXT,
+    target_count INTEGER NOT NULL,
+    reward_points INTEGER NOT NULL,
+    starts_at TEXT NOT NULL,
+    ends_at TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS mission_claims (
+    mission_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    claimed_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (mission_id, user_id)
+  )
+`);
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS promotion_codes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -692,13 +720,18 @@ function addPurchase({ userId, monto, producto }: { userId: number; monto: numbe
   purchaseId: number | bigint;
   puntos: number;
   balance: number;
+  missionsClaimed: { mission: Mission; points: number }[];
 } {
   const puntos = Math.max(Math.floor(monto / SOLES_PER_PUNTO), 0);
   const info = insertPurchaseStmt.run(userId, monto, producto || null, puntos);
   if (puntos > 0) {
     insertLedgerStmt.run(userId, puntos, `Compra #${info.lastInsertRowid}`);
   }
-  return { purchaseId: info.lastInsertRowid, puntos, balance: getPointsBalance(userId) };
+  // La compra recién guardada puede haber completado una misión vigente
+  // (ej. "3 compras esta semana") — se revisa aquí, justo cuando el
+  // progreso pudo haber cambiado, no en un cron aparte.
+  const missionsClaimed = claimDueMissions(userId);
+  return { purchaseId: info.lastInsertRowid, puntos, balance: getPointsBalance(userId), missionsClaimed };
 }
 
 function getPointsBalance(userId: number): number {
@@ -1557,6 +1590,142 @@ function deletePromotion(id: number): void {
   if (info.changes === 0) throw new Error('PROMOTION_NOT_FOUND');
 }
 
+// ───────────────────────── misiones con vencimiento corto ─────────────────────────
+
+export interface Mission {
+  id: number;
+  title: string;
+  body: string | null;
+  target_count: number;
+  reward_points: number;
+  starts_at: string;
+  ends_at: string;
+  active: number;
+  created_at: string;
+}
+
+export interface MissionProgress extends Mission {
+  progress: number;
+  claimed: boolean;
+}
+
+const insertMissionStmt = db.prepare(
+  'INSERT INTO missions (title, body, target_count, reward_points, starts_at, ends_at) VALUES (?, ?, ?, ?, ?, ?)'
+);
+const getMissionByIdStmt = db.prepare('SELECT * FROM missions WHERE id = ?');
+const adminListMissionsStmt = db.prepare('SELECT * FROM missions ORDER BY id DESC LIMIT ? OFFSET ?');
+const adminMissionsCountStmt = db.prepare('SELECT COUNT(*) AS total FROM missions');
+const deactivateMissionStmt = db.prepare('UPDATE missions SET active = 0 WHERE id = ?');
+const deleteMissionClaimsStmt = db.prepare('DELETE FROM mission_claims WHERE mission_id = ?');
+const deleteMissionStmt = db.prepare('DELETE FROM missions WHERE id = ?');
+// Vigentes ahora mismo: activa, y la fecha de hoy cae dentro de [starts_at,
+// ends_at] (mismo estilo de comparación que las promociones).
+const listCurrentMissionsStmt = db.prepare(
+  `SELECT * FROM missions
+   WHERE active = 1 AND starts_at <= datetime('now') AND ends_at >= datetime('now')
+   ORDER BY ends_at ASC`
+);
+const countUserPurchasesInRangeStmt = db.prepare(
+  'SELECT COUNT(*) AS total FROM purchases WHERE user_id = ? AND created_at >= ? AND created_at <= ?'
+);
+const hasClaimedMissionStmt = db.prepare('SELECT 1 FROM mission_claims WHERE mission_id = ? AND user_id = ?');
+const insertMissionClaimStmt = db.prepare('INSERT OR IGNORE INTO mission_claims (mission_id, user_id) VALUES (?, ?)');
+
+function createMission({
+  title,
+  body,
+  targetCount,
+  rewardPoints,
+  startsAt,
+  endsAt,
+}: {
+  title: string;
+  body?: string | null;
+  targetCount: number | string;
+  rewardPoints: number | string;
+  startsAt: string;
+  endsAt: string;
+}): Mission {
+  const info = insertMissionStmt.run(title, body || null, Number(targetCount), Number(rewardPoints), startsAt, endsAt);
+  return getMissionByIdStmt.get(info.lastInsertRowid) as unknown as Mission;
+}
+
+function claimCountsByMissionId(missionIds: (number | bigint)[]): Map<number, number> {
+  const map = new Map<number, number>();
+  if (missionIds.length === 0) return map;
+  const placeholders = missionIds.map(() => '?').join(',');
+  const rows = db
+    .prepare(`SELECT mission_id, COUNT(*) AS total FROM mission_claims WHERE mission_id IN (${placeholders}) GROUP BY mission_id`)
+    .all(...missionIds) as unknown as { mission_id: number; total: number }[];
+  for (const row of rows) map.set(row.mission_id, row.total);
+  return map;
+}
+
+function adminListMissions({ limit = 20, page = 1 }: PaginationParams = {}): PaginatedResult<Mission & { claimedCount: number }> {
+  const p = paginate({ limit, page });
+  const items = adminListMissionsStmt.all(p.limit, p.offset) as unknown as Mission[];
+  const claimedMap = claimCountsByMissionId(items.map((m) => m.id));
+  return {
+    items: items.map((m) => ({ ...m, claimedCount: claimedMap.get(m.id) || 0 })),
+    total: (adminMissionsCountStmt.get() as unknown as { total: number }).total,
+    page: p.page,
+    limit: p.limit,
+  };
+}
+
+function deactivateMission(id: number): void {
+  deactivateMissionStmt.run(id);
+}
+
+// Borrado real solo si nadie cobró la recompensa todavía (si no, se pierde
+// el historial de quién ya la cobró); si ya se cobró, hay que desactivarla.
+function deleteMission(id: number): void {
+  const claimed = (
+    db.prepare('SELECT COUNT(*) AS total FROM mission_claims WHERE mission_id = ?').get(id) as unknown as { total: number }
+  ).total;
+  if (claimed > 0) throw new Error('MISSION_HAS_CLAIMS');
+  const info = deleteMissionStmt.run(id);
+  if (info.changes === 0) throw new Error('MISSION_NOT_FOUND');
+}
+
+// Progreso del cliente en cada misión vigente ahora mismo — se calcula
+// contando sus compras dentro de la ventana de la misión, nunca se guarda
+// aparte, así que siempre refleja el historial real.
+function getUserMissionProgress(userId: number): MissionProgress[] {
+  const missions = listCurrentMissionsStmt.all() as unknown as Mission[];
+  return missions.map((mission) => {
+    const progress = (
+      countUserPurchasesInRangeStmt.get(userId, mission.starts_at, mission.ends_at) as unknown as { total: number }
+    ).total;
+    const claimed = Boolean(hasClaimedMissionStmt.get(mission.id, userId));
+    return { ...mission, progress: Math.min(progress, mission.target_count), claimed };
+  });
+}
+
+// Se llama después de registrar una compra (ver addPurchase): si esa compra
+// hizo que el cliente complete alguna misión vigente que todavía no había
+// cobrado, le da la recompensa ahora mismo. insertMissionClaimStmt es
+// INSERT OR IGNORE sobre una PK (mission_id, user_id), así que si dos
+// compras casi simultáneas completan la misma misión, solo una cobra.
+function claimDueMissions(userId: number): { mission: Mission; points: number }[] {
+  const missions = listCurrentMissionsStmt.all() as unknown as Mission[];
+  const claimed: { mission: Mission; points: number }[] = [];
+  for (const mission of missions) {
+    if (hasClaimedMissionStmt.get(mission.id, userId)) continue;
+    const progress = (
+      countUserPurchasesInRangeStmt.get(userId, mission.starts_at, mission.ends_at) as unknown as { total: number }
+    ).total;
+    if (progress < mission.target_count) continue;
+    const info = insertMissionClaimStmt.run(mission.id, userId);
+    if (info.changes === 0) continue;
+    if (mission.reward_points > 0) {
+      insertLedgerStmt.run(userId, mission.reward_points, `🎯 Misión: ${mission.title}`);
+    }
+    claimed.push({ mission, points: mission.reward_points });
+  }
+  return claimed;
+}
+
 // ───────────────────────── notificaciones push ─────────────────────────
 
 const upsertPushSubscriptionStmt = db.prepare(
@@ -2055,6 +2224,13 @@ module.exports = {
   markPromotionActivated,
   updatePromotion,
   deletePromotion,
+  // misiones
+  createMission,
+  adminListMissions,
+  deactivateMission,
+  deleteMission,
+  getUserMissionProgress,
+  claimDueMissions,
   // push
   addPushSubscription,
   removePushSubscription,

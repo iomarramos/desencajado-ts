@@ -16,6 +16,7 @@ const {
   createProfileField, getProfileFieldByKey, adminListProfileFields,
   updateProfileField, deleteProfileField, getUserProfileValues, getMissingRequiredFields, setUserProfileValues,
   createPromotion, addPromotionCode, redeemPromotionCode, findActivePromotionByTitle,
+  createMission, adminListMissions, deactivateMission, deleteMission, getUserMissionProgress,
   getPromotionRedeemers, getPromotionNonRedeemers, adminPromotionsSummary, adminTopCustomersByPurchases, adminRecurringPromoCustomers,
   listActivePromotions, adminListPromotions, deactivatePromotion, markPromotionPushed,
   listPromotionsReadyToActivate, markPromotionActivated,
@@ -1230,6 +1231,90 @@ async function handleAdminPromotionAddCode(req: Req, res: Res): Promise<void> {
   sendJson(res, 201, { ok: true, promotion });
 }
 
+// ───────────────────────── misiones con vencimiento corto ─────────────────────────
+
+function handleAdminMissionsList(req: Req, res: Res, query: URLSearchParams): void {
+  if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
+  sendJson(res, 200, { ok: true, ...adminListMissions(paginationParams(query)) });
+}
+
+async function handleAdminMissionCreate(req: Req, res: Res): Promise<void> {
+  if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
+
+  let body: any;
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    return sendJson(res, 400, { ok: false, error: 'JSON inválido.' });
+  }
+
+  const title = String(body.title || '').trim();
+  const targetCount = Number(body.targetCount);
+  const rewardPoints = Number(body.rewardPoints);
+  if (!title || !(targetCount > 0) || !(rewardPoints >= 0) || !body.startsAt || !body.endsAt) {
+    return sendJson(res, 400, {
+      ok: false,
+      error: 'La misión necesita título, meta de compras, recompensa y fechas de inicio/fin.',
+    });
+  }
+
+  const mission = createMission({
+    title,
+    body: body.body || null,
+    targetCount,
+    rewardPoints,
+    startsAt: body.startsAt,
+    endsAt: body.endsAt,
+  });
+  sendJson(res, 201, { ok: true, mission });
+}
+
+async function handleAdminMissionDeactivate(req: Req, res: Res): Promise<void> {
+  if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
+
+  let body: any;
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    return sendJson(res, 400, { ok: false, error: 'JSON inválido.' });
+  }
+
+  if (!body.id) return sendJson(res, 400, { ok: false, error: 'Falta el id de la misión.' });
+  deactivateMission(body.id);
+  sendJson(res, 200, { ok: true });
+}
+
+async function handleAdminMissionDelete(req: Req, res: Res): Promise<void> {
+  if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
+
+  let body: any;
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    return sendJson(res, 400, { ok: false, error: 'JSON inválido.' });
+  }
+
+  if (!body.id) return sendJson(res, 400, { ok: false, error: 'Falta el id de la misión.' });
+
+  try {
+    deleteMission(body.id);
+    sendJson(res, 200, { ok: true });
+  } catch (err) {
+    const msg = errorMessage(err) === 'MISSION_HAS_CLAIMS'
+      ? 'Esta misión ya tiene clientes que cobraron la recompensa: no se puede borrar, solo desactivar.'
+      : 'Misión no encontrada.';
+    sendJson(res, 400, { ok: false, error: msg });
+  }
+}
+
+// Progreso del cliente logueado en las misiones vigentes ahora mismo —
+// se recalcula en cada carga, no se guarda en el front.
+function handleMyMissions(req: Req, res: Res): void {
+  const user = requireActiveUser(req);
+  if (!user) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
+  sendJson(res, 200, { ok: true, items: getUserMissionProgress(user.id) });
+}
+
 // ───────────────────────── administrador: catálogo de productos ─────────────────────────
 
 function handleAdminProductsList(req: Req, res: Res, query: URLSearchParams): void {
@@ -1576,6 +1661,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url === '/api/admin/promotions/update') return await handleAdminPromotionUpdate(req, res);
     if (req.method === 'POST' && url === '/api/admin/promotions/delete') return await handleAdminPromotionDelete(req, res);
     if (req.method === 'POST' && url === '/api/admin/promotions/codes') return await handleAdminPromotionAddCode(req, res);
+    if (req.method === 'GET' && url === '/api/admin/missions') return handleAdminMissionsList(req, res, query);
+    if (req.method === 'POST' && url === '/api/admin/missions') return await handleAdminMissionCreate(req, res);
+    if (req.method === 'POST' && url === '/api/admin/missions/deactivate') return await handleAdminMissionDeactivate(req, res);
+    if (req.method === 'POST' && url === '/api/admin/missions/delete') return await handleAdminMissionDelete(req, res);
+    if (req.method === 'GET' && url === '/api/missions') return handleMyMissions(req, res);
     if (req.method === 'GET' && url === '/api/admin/products') return handleAdminProductsList(req, res, query);
     if (req.method === 'GET' && url === '/api/admin/products/active') return handleAdminProductsActive(req, res);
     if (req.method === 'GET' && url === '/api/products/combos') return handleCombos(req, res);

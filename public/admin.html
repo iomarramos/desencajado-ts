@@ -124,6 +124,7 @@ textarea{resize:vertical;min-height:70px}
     <button class="tab-btn" data-tab="compras">Compras</button>
     <button class="tab-btn" data-tab="productos">Productos</button>
     <button class="tab-btn" data-tab="promos">Promociones</button>
+    <button class="tab-btn" data-tab="misiones">Misiones</button>
     <button class="tab-btn" data-tab="reportes">Reportes</button>
     <button class="tab-btn" data-tab="qrlocal">QR del local</button>
     <button class="tab-btn" data-tab="perfil">Campos de perfil</button>
@@ -300,6 +301,49 @@ textarea{resize:vertical;min-height:70px}
     </div>
   </div>
 
+  <div id="tab-misiones" class="tab-panel hidden">
+    <div class="card">
+      <h2>Nueva misión</h2>
+      <p class="empty" style="margin-bottom:.8rem;font-size:.85rem">Ej. "Compra 3 veces esta semana" — el cliente ve su progreso en cuenta.html y cobra las estrellas automáticamente al completarla, antes de que venza.</p>
+      <div class="field">
+        <label for="mission-title">Título</label>
+        <input type="text" id="mission-title" placeholder="Compra 3 veces esta semana">
+      </div>
+      <div class="field">
+        <label for="mission-body">Descripción (opcional)</label>
+        <textarea id="mission-body" placeholder="Cualquier compra cuenta, sin monto mínimo."></textarea>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr">
+        <div class="field" style="margin:0">
+          <label for="mission-target">Meta (número de compras)</label>
+          <input type="number" id="mission-target" min="1" placeholder="3">
+        </div>
+        <div class="field" style="margin:0">
+          <label for="mission-points">Recompensa (estrellas)</label>
+          <input type="number" id="mission-points" min="0" placeholder="20">
+        </div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr">
+        <div class="field" style="margin:0">
+          <label for="mission-starts">Empieza</label>
+          <input type="datetime-local" id="mission-starts">
+        </div>
+        <div class="field" style="margin:0">
+          <label for="mission-ends">Vence</label>
+          <input type="datetime-local" id="mission-ends">
+        </div>
+      </div>
+      <button class="btn small" id="mission-submit-btn">Crear misión</button>
+      <div class="msg" id="mission-msg"></div>
+    </div>
+    <div class="card">
+      <h2>Misiones</h2>
+      <div id="missions-list"></div>
+      <p class="empty hidden" id="missions-empty">Sin misiones todavía.</p>
+      <div class="pager" id="missions-pager"></div>
+    </div>
+  </div>
+
   <div id="tab-reportes" class="tab-panel hidden">
     <div class="card">
       <h2>Resumen de promociones</h2>
@@ -428,7 +472,7 @@ function escapeHtml(value){
 }
 
 let ADMIN_TOKEN = sessionStorage.getItem('admin_token') || '';
-const pageState = { usuarios: 1, referidos: 1, familias: 1, compras: 1, promos: 1, topcli: 1, recur: 1 };
+const pageState = { usuarios: 1, referidos: 1, familias: 1, compras: 1, promos: 1, topcli: 1, recur: 1, missions: 1 };
 const searchState = { usuarios: '', referidos: '', compras: '', topcli: '', recur: '' };
 const LIMIT = 15;
 
@@ -503,6 +547,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     if (btn.dataset.tab === 'compras') loadCompras();
     if (btn.dataset.tab === 'productos') loadProductos();
     if (btn.dataset.tab === 'promos') { loadPromos(); loadProductCheckboxes(); }
+    if (btn.dataset.tab === 'misiones') loadMissions();
     if (btn.dataset.tab === 'reportes') { loadReportesSummary(); loadTopClientes(1); loadRecurrentes(1); }
     if (btn.dataset.tab === 'qrlocal') loadQrLocal();
     if (btn.dataset.tab === 'perfil') loadPerfilFields();
@@ -860,6 +905,95 @@ async function submitPromotion(confirmDuplicate){
 }
 
 document.getElementById('promo-submit-btn').addEventListener('click', () => submitPromotion(false));
+
+// ═══ Misiones ═══
+
+async function loadMissions(page = pageState.missions){
+  pageState.missions = page;
+  const data = await adminFetch(`/api/admin/missions?page=${page}&limit=10`);
+  const list = document.getElementById('missions-list');
+  list.innerHTML = '';
+  document.getElementById('missions-empty').classList.toggle('hidden', data.items.length > 0);
+  data.items.forEach(m => {
+    const row = document.createElement('div');
+    row.className = `promo-row ${m.active ? '' : 'inactive'}`;
+
+    const now = new Date();
+    const ended = new Date(m.ends_at) < now;
+    const statusPill = !m.active
+      ? '<span class="pill">Inactiva</span>'
+      : ended
+        ? '<span class="pill">Vencida</span>'
+        : '<span class="pill">Vigente</span>';
+
+    const main = document.createElement('div');
+    main.className = 'promo-main';
+    main.innerHTML = `
+      <div style="flex:1;min-width:0">
+        <b>${escapeHtml(m.title)}</b> ${statusPill}
+        <span class="pill">🎯 Meta: ${m.target_count} compra(s)</span>
+        <span class="pill">+${m.reward_points} ⭐</span>
+        ${m.body ? `<p style="font-size:.85rem;margin-top:.3rem">${escapeHtml(m.body)}</p>` : ''}
+        <p style="font-size:.72rem;opacity:.6;margin-top:.3rem">
+          Vigencia: ${fmtDate(m.starts_at)} → ${fmtDate(m.ends_at)} · ${m.claimedCount} cliente(s) ya cobraron
+        </p>
+      </div>`;
+    row.appendChild(main);
+
+    const actions = document.createElement('div');
+    actions.style.display = 'flex';
+    actions.style.flexDirection = 'column';
+    actions.style.gap = '.4rem';
+
+    if (m.active) {
+      const deactivateBtn = document.createElement('button');
+      deactivateBtn.className = 'btn ghost small';
+      deactivateBtn.textContent = 'Desactivar';
+      deactivateBtn.onclick = async () => { await adminPost('/api/admin/missions/deactivate', { id: m.id }); loadMissions(page); };
+      actions.appendChild(deactivateBtn);
+    }
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn ghost small';
+    deleteBtn.textContent = 'Eliminar';
+    deleteBtn.onclick = async () => {
+      if (!confirm(`¿Eliminar definitivamente "${m.title}"? Si algún cliente ya cobró la recompensa, no se podrá y hay que desactivarla en su lugar.`)) return;
+      const { ok, data } = await adminPost('/api/admin/missions/delete', { id: m.id });
+      if (!ok) { alert(data.error); return; }
+      loadMissions(page);
+    };
+    actions.appendChild(deleteBtn);
+
+    row.appendChild(actions);
+    list.appendChild(row);
+  });
+  renderPager('missions-pager', data.page, data.total, data.limit, loadMissions);
+}
+
+document.getElementById('mission-submit-btn').addEventListener('click', async () => {
+  const title = document.getElementById('mission-title').value.trim();
+  const body = document.getElementById('mission-body').value.trim();
+  const targetCount = document.getElementById('mission-target').value;
+  const rewardPoints = document.getElementById('mission-points').value;
+  const startsAt = document.getElementById('mission-starts').value;
+  const endsAt = document.getElementById('mission-ends').value;
+
+  if (!title || !targetCount || !rewardPoints || !startsAt || !endsAt) {
+    setMsg('mission-msg', 'error', 'Completa título, meta, recompensa y ambas fechas.');
+    return;
+  }
+
+  const { ok, data } = await adminPost('/api/admin/missions', { title, body, targetCount, rewardPoints, startsAt, endsAt });
+  if (!ok) { setMsg('mission-msg', 'error', data.error || 'No se pudo crear.'); return; }
+  setMsg('mission-msg', 'ok', `✅ Misión "${data.mission.title}" creada.`);
+  document.getElementById('mission-title').value = '';
+  document.getElementById('mission-body').value = '';
+  document.getElementById('mission-target').value = '';
+  document.getElementById('mission-points').value = '';
+  document.getElementById('mission-starts').value = '';
+  document.getElementById('mission-ends').value = '';
+  loadMissions();
+});
 
 // ═══ Reportes ═══
 

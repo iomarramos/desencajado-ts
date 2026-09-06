@@ -278,6 +278,11 @@ footer{background:#081130;color:rgba(255,255,255,.7);padding:2rem 5vw;text-align
     <p class="lead hidden" id="birthday-saved" style="font-size:.85rem"></p>
   </div>
 
+  <div class="card hidden" id="missions-card">
+    <h2>🎯 Misiones activas</h2>
+    <div id="missions-list" style="display:grid;gap:1rem"></div>
+  </div>
+
   <div class="card hidden" id="combos-card">
     <h2>🥤 Combos para socios</h2>
     <p class="lead" style="font-size:.85rem;margin-bottom:1rem">Precio especial solo por estar logueado en tu cuenta.</p>
@@ -581,6 +586,7 @@ function renderWallet(user, birthdayBonus){
   renderExtraInfoCard(user.profileFields);
   renderBirthday(user.birthdate);
   loadCombos();
+  loadMissions();
 
   document.getElementById('copy-ref-btn').onclick = () => {
     const link = `${location.origin}/cuenta.html?ref=${user.referralCode}`;
@@ -748,6 +754,7 @@ function applyBalanceUpdate({ balance, reward, tier, spinStatus }){
   renderTier(tier);
   renderSpin(spinStatus);
   loadPurchases();
+  loadMissions();
 }
 
 async function loadPurchases(){
@@ -808,6 +815,31 @@ async function loadCombos(){
         <div class="name">${escapeHtml(p.name)}</div>
         <div>${p.price != null ? `<span class="price-old">S/ ${Number(p.price).toFixed(2)}</span>` : ''}<span class="price-member">S/ ${Number(p.member_price).toFixed(2)}</span></div>
       </div>`;
+    list.appendChild(row);
+  });
+}
+
+async function loadMissions(){
+  const { ok, data } = await api('/api/missions');
+  const card = document.getElementById('missions-card');
+  if (!ok || !data.items || data.items.length === 0) {
+    card.classList.add('hidden');
+    return;
+  }
+  card.classList.remove('hidden');
+  const list = document.getElementById('missions-list');
+  list.innerHTML = '';
+  data.items.forEach(m => {
+    const pct = Math.min(Math.round((m.progress / m.target_count) * 100), 100);
+    const row = document.createElement('div');
+    row.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;flex-wrap:wrap">
+        <b style="font-family:var(--fd)">${escapeHtml(m.title)}</b>
+        <span style="font-size:.75rem;opacity:.65">${m.claimed ? '✅ Completada' : formatCountdown(m.ends_at) || '⏳ En curso'}</span>
+      </div>
+      ${m.body ? `<p class="lead" style="font-size:.82rem;margin:.2rem 0 .5rem">${escapeHtml(m.body)}</p>` : ''}
+      <div class="progress-track" style="margin:.5rem 0 .3rem"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="progress-caption"><span>${m.progress} / ${m.target_count}</span><span>+${m.reward_points} ⭐</span></div>`;
     list.appendChild(row);
   });
 }

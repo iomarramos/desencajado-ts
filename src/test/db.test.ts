@@ -340,6 +340,65 @@ test('cumpleaños: da el bono solo el día correcto y solo una vez al año', () 
   assert.equal(notToday.granted, false);
 });
 
+// ───────────────────────── misiones con vencimiento corto ─────────────────────────
+
+function isoOffset(days: number): string {
+  const d = new Date(Date.now() + days * 86400000);
+  return d.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+test('misiones: el progreso se calcula de las compras y solo se cobra una vez al completar', () => {
+  const mission = db.createMission({
+    title: 'Compra 2 veces',
+    body: 'Cualquier compra cuenta',
+    targetCount: 2,
+    rewardPoints: 15,
+    startsAt: isoOffset(-1),
+    endsAt: isoOffset(1),
+  });
+
+  const user = makeUser('Misionero');
+
+  let progress = db.getUserMissionProgress(user.id).find((m: any) => m.id === mission.id);
+  assert.equal(progress.progress, 0);
+  assert.equal(progress.claimed, false);
+
+  const r1 = db.addPurchase({ userId: user.id, monto: 10, producto: 'x' });
+  assert.equal(r1.missionsClaimed.length, 0);
+  progress = db.getUserMissionProgress(user.id).find((m: any) => m.id === mission.id);
+  assert.equal(progress.progress, 1);
+
+  const balanceBeforeComplete = db.getPointsBalance(user.id);
+  const r2 = db.addPurchase({ userId: user.id, monto: 10, producto: 'x' });
+  assert.equal(r2.missionsClaimed.length, 1);
+  assert.equal(r2.missionsClaimed[0].points, 15);
+  assert.equal(db.getPointsBalance(user.id), balanceBeforeComplete + 2 + 15); // +2 de la compra, +15 de la misión
+
+  // una tercera compra no debe volver a pagar la misión
+  const r3 = db.addPurchase({ userId: user.id, monto: 10, producto: 'x' });
+  assert.equal(r3.missionsClaimed.length, 0);
+  progress = db.getUserMissionProgress(user.id).find((m: any) => m.id === mission.id);
+  assert.equal(progress.claimed, true);
+  assert.equal(progress.progress, 2); // no sube más allá de la meta
+
+  assert.throws(() => db.deleteMission(mission.id), /MISSION_HAS_CLAIMS/);
+  db.deactivateMission(mission.id);
+  assert.equal(db.getUserMissionProgress(user.id).some((m: any) => m.id === mission.id), false);
+});
+
+test('misiones: una vigencia fuera de rango no aparece en el progreso del cliente', () => {
+  const mission = db.createMission({
+    title: 'Misión futura',
+    targetCount: 1,
+    rewardPoints: 5,
+    startsAt: isoOffset(5),
+    endsAt: isoOffset(10),
+  });
+  const user = makeUser('Sin misión activa');
+  assert.equal(db.getUserMissionProgress(user.id).some((m: any) => m.id === mission.id), false);
+  db.deleteMission(mission.id);
+});
+
 // ───────────────────────── niveles de fidelidad ─────────────────────────
 
 test('niveles: sube de bronce a plata a oro según puntos de por vida, y el canje no baja de nivel', () => {
