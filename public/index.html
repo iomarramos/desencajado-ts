@@ -621,10 +621,10 @@ tick(); setInterval(tick,1000);
 const tag=document.getElementById('tagline'), TXT='Acá nadie es raro. Todos somos desencajados.';
 const CH='!<>-_/[]{}=+*^?#🧠'; let fr=0;
 const scr=setInterval(()=>{
-  tag.innerHTML=[...TXT].map((c,i)=>c===' '?' ':(i<fr/2.5?c:CH[Math.random()*CH.length|0])).join('');
-  if(fr/2.5>TXT.length){clearInterval(scr);tag.innerHTML='Acá nadie es raro. <b>Todos somos desencajados.</b>';}
+  tag.innerHTML=[...TXT].map((c,i)=>c===' '?' ':(i<fr/3?c:CH[Math.random()*CH.length|0])).join('');
+  if(fr/3>TXT.length){clearInterval(scr);tag.innerHTML='Acá nadie es raro. <b>Todos somos desencajados.</b>';}
   fr++;
-},34);
+},45);
 
 /* ═══ TABS menú ═══ */
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
