@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Sintaxis + tests (Node 22)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # No fijar '22.5': las primeras patch de la serie 22.5.x todavía
+          # requieren el flag --experimental-sqlite para poder hacer
+          # `require('node:sqlite')` (falla con ERR_UNKNOWN_BUILTIN_MODULE
+          # sin él); versiones más nuevas de Node 22 no lo necesitan. '22'
+          # trae la última patch de la serie, que sí funciona sin flag.
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Verificar sintaxis de todos los .js
+        run: |
+          set -e
+          find . \
+            -name '*.js' \
+            -not -path './node_modules/*' \
+            -not -path './data/*' \
+            -print0 | xargs -0 -n1 node -c
+
+      - name: Ejecutar tests
+        run: npm test
+
+      - name: Smoke test del servidor
+        run: |
+          set -e
+          ADMIN_TOKEN=ci-test-token PORT=3999 node server.js &
+          SERVER_PID=$!
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:3999/api/subscribe/count > /dev/null; then break; fi
+            sleep 0.5
+          done
+          curl -sf http://localhost:3999/ > /dev/null
+          curl -sf http://localhost:3999/cuenta.html > /dev/null
+          curl -sf http://localhost:3999/admin.html > /dev/null
+          curl -sf http://localhost:3999/api/subscribe/count | grep -q '"ok":true'
+          kill $SERVER_PID
+        env:
+          DB_FILE: /tmp/ci-smoke.sqlite

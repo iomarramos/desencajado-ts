@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DESENCAJADO — Panel administrador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700;800;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --yellow:#F5C200; --navy:#0D1B4B; --blue:#1E6FCC; --fuchsia:#FF0077; --bone:#F8F4EB; --green:#1FA97E;
+  --grad:linear-gradient(90deg,var(--fuchsia),var(--blue));
+  --fd:'Poppins',system-ui,sans-serif; --fb:'Inter',system-ui,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--fb);background:var(--bone);color:var(--navy);min-height:100vh}
+
+header{display:flex;justify-content:space-between;align-items:center;padding:1.2rem 5vw;background:var(--navy);position:sticky;top:0;z-index:20}
+.logo{display:flex;align-items:center;gap:.6rem;text-decoration:none;font-family:var(--fd);font-weight:900;font-size:1.1rem;color:#fff}
+.logo svg{width:36px;height:36px}
+.tag{color:var(--yellow);font-weight:700;font-size:.8rem}
+
+main{max-width:1100px;margin:0 auto;padding:2.4rem 5vw 5rem}
+
+.gate{max-width:420px;margin:4rem auto;background:#fff;border-radius:22px;padding:2.2rem;box-shadow:0 20px 50px -30px rgba(13,27,75,.35)}
+.gate h1{font-family:var(--fd);font-weight:900;font-size:1.4rem;margin-bottom:1rem}
+.gate input{width:100%;padding:1rem 1.2rem;border-radius:14px;border:2px solid rgba(13,27,75,.2);font-size:1rem;margin-bottom:1rem}
+.btn{display:inline-flex;align-items:center;gap:.5rem;padding:.85rem 1.6rem;border-radius:999px;font-family:var(--fd);font-weight:700;
+  font-size:.9rem;border:none;cursor:pointer;background:var(--grad);color:#fff;transition:.2s}
+.btn:hover{transform:translateY(-2px)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn.ghost{background:none;color:var(--navy);border:2px solid rgba(13,27,75,.2)}
+.btn.small{padding:.5rem 1rem;font-size:.8rem}
+
+.tabs{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1.6rem}
+.tab-btn{padding:.7rem 1.2rem;border-radius:999px;border:2px solid rgba(13,27,75,.15);background:#fff;font-weight:700;
+  font-size:.85rem;cursor:pointer;color:var(--navy)}
+.tab-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+
+.card{background:#fff;border-radius:20px;padding:1.8rem;box-shadow:0 20px 50px -30px rgba(13,27,75,.3);margin-bottom:1.6rem}
+h2{font-family:var(--fd);font-weight:900;font-size:1.15rem;margin-bottom:1rem}
+
+.toolbar{display:flex;gap:.7rem;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem}
+.stat-box{background:var(--navy);color:#fff;border-radius:14px;padding:1rem 1.2rem;border-bottom:4px solid var(--yellow)}
+.stat-box b{display:block;font-family:var(--fd);font-size:1.6rem;font-weight:900;color:var(--yellow)}
+.stat-box span{font-size:.72rem;letter-spacing:.04em;opacity:.85}
+.search-input{padding:.65rem 1rem;border-radius:12px;border:2px solid rgba(13,27,75,.15);font-size:.85rem;min-width:220px}
+
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th,td{text-align:left;padding:.55rem .5rem;border-bottom:1px solid rgba(13,27,75,.08)}
+th{font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;opacity:.6}
+.empty{opacity:.6;font-size:.9rem;padding:1rem 0}
+
+.pager{display:flex;gap:.6rem;align-items:center;justify-content:flex-end;margin-top:1rem;font-size:.85rem}
+
+.chart{display:flex;align-items:flex-end;gap:4px;height:160px;margin-top:1rem;border-bottom:2px solid rgba(13,27,75,.1);padding-bottom:2px}
+.bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.bar{width:100%;background:var(--grad);border-radius:4px 4px 0 0;min-height:2px}
+.bar-label{font-size:.62rem;margin-top:.3rem;opacity:.65;writing-mode:vertical-rl;transform:rotate(180deg);height:36px}
+.chart.weekday .bar-label{writing-mode:horizontal-tb;transform:none;height:auto}
+
+.field{display:grid;gap:.35rem;margin-bottom:.9rem}
+label{font-weight:700;font-size:.82rem}
+input[type=text],input[type=number],input[type=email],select,textarea{padding:.75rem 1rem;border-radius:12px;border:2px solid rgba(13,27,75,.2);
+  font-family:var(--fb);font-size:.9rem;width:100%}
+textarea{resize:vertical;min-height:70px}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;align-items:end;margin-bottom:1rem}
+.msg{margin-top:.8rem;border-radius:12px;padding:.8rem 1rem;font-weight:600;font-size:.85rem;display:none}
+.msg.show{display:block}
+.msg.ok{background:var(--navy);color:#fff;border-left:5px solid var(--yellow)}
+.msg.error{background:#fff0f6;color:var(--fuchsia);border-left:5px solid var(--fuchsia)}
+
+.hidden{display:none}
+.pill{display:inline-block;padding:.2rem .6rem;border-radius:999px;background:var(--bone);font-size:.72rem;font-weight:700}
+.pill.warn{background:#fff3d6}
+.promo-row{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;padding:1.2rem 0;border-bottom:1px solid rgba(13,27,75,.08)}
+.promo-row.inactive{opacity:.5}
+.promo-row b{font-family:var(--fd)}
+.promo-photo{width:84px;height:84px;border-radius:12px;object-fit:cover;background:var(--bone);flex-shrink:0}
+.promo-main{display:flex;gap:1rem;flex:1;min-width:0}
+.chip{display:inline-block;padding:.15rem .55rem;border-radius:999px;background:var(--bone);font-size:.7rem;font-weight:700;margin:.15rem .25rem 0 0}
+.code-row{display:flex;justify-content:space-between;align-items:center;gap:.6rem;background:var(--bone);border-radius:10px;padding:.5rem .8rem;margin-top:.4rem;font-size:.78rem}
+.code-row code{font-weight:700}
+.code-add{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.6rem}
+.code-add input{padding:.5rem .7rem;border-radius:10px;border:2px solid rgba(13,27,75,.15);font-size:.8rem;width:120px}
+.checkbox-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.6rem;margin-bottom:.5rem}
+.checkbox-item{display:flex;align-items:center;gap:.5rem;background:var(--bone);border-radius:10px;padding:.5rem .7rem;font-size:.82rem}
+.checkbox-item img{width:28px;height:28px;border-radius:6px;object-fit:cover;flex-shrink:0}
+.product-card{display:flex;align-items:center;gap:.8rem;padding:.8rem 0;border-bottom:1px solid rgba(13,27,75,.08)}
+.product-card img{width:56px;height:56px;border-radius:10px;object-fit:cover;background:var(--bone)}
+.product-card.inactive{opacity:.5}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="/">
+    <svg viewBox="0 0 60 60"><circle cx="22" cy="22" r="13" fill="#1E6FCC"/><circle cx="38" cy="22" r="13" fill="#FF0077"/><circle cx="30" cy="16" r="10" fill="#1E6FCC"/><circle cx="34" cy="14" r="8" fill="#FF0077"/><rect x="17" y="20" width="12" height="9" rx="3" fill="#0D1B4B"/><rect x="31" y="20" width="12" height="9" rx="3" fill="#0D1B4B"/><path d="M14 40 L46 40 L42 56 L18 56 Z" fill="#1E6FCC" stroke="#F5C200" stroke-width="2.5"/></svg>
+    DESENCAJADO
+  </a>
+  <span class="tag">Panel administrador</span>
+</header>
+
+<main>
+
+<section id="gate" class="gate">
+  <h1>Acceso administrador</h1>
+  <input type="password" id="token-input" placeholder="Token de administrador (ADMIN_TOKEN)">
+  <button class="btn" id="token-btn">Entrar</button>
+  <p class="empty" id="gate-error"></p>
+</section>
+
+<section id="panel" class="hidden">
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="trafico">Tráfico / horarios</button>
+    <button class="tab-btn" data-tab="usuarios">Usuarios / wallet</button>
+    <button class="tab-btn" data-tab="referidos">Afiliados</button>
+    <button class="tab-btn" data-tab="familias">Compartidos</button>
+    <button class="tab-btn" data-tab="compras">Compras</button>
+    <button class="tab-btn" data-tab="productos">Productos</button>
+    <button class="tab-btn" data-tab="promos">Promociones</button>
+    <button class="tab-btn" data-tab="reportes">Reportes</button>
+    <button class="tab-btn" data-tab="perfil">Campos de perfil</button>
+    <button class="tab-btn" data-tab="suscriptores">Pre-registro</button>
+  </div>
+
+  <div id="tab-trafico" class="tab-panel">
+    <div class="card">
+      <h2>Consumo por hora del día</h2>
+      <div class="chart" id="chart-hour"></div>
+    </div>
+    <div class="card">
+      <h2>Consumo por día de la semana</h2>
+      <div class="chart weekday" id="chart-weekday"></div>
+    </div>
+  </div>
+
+  <div id="tab-usuarios" class="tab-panel hidden">
+    <div class="card">
+      <h2>Registrar una compra</h2>
+      <div class="form-grid">
+        <div class="field" style="margin:0">
+          <label for="pc-email">Email del cliente</label>
+          <input type="email" id="pc-email" placeholder="cliente@gmail.com">
+        </div>
+        <div class="field" style="margin:0">
+          <label for="pc-monto">Monto (S/)</label>
+          <input type="number" id="pc-monto" min="0" step="0.1" placeholder="25.00">
+        </div>
+        <div class="field" style="margin:0">
+          <label for="pc-producto">Producto</label>
+          <input type="text" id="pc-producto" placeholder="Frappé de Lúcuma">
+        </div>
+        <button class="btn small" id="pc-submit-btn">Registrar compra</button>
+      </div>
+      <div class="msg" id="pc-msg"></div>
+    </div>
+    <div class="card">
+      <div class="toolbar">
+        <h2 style="margin:0">Usuarios y saldo de estrellas</h2>
+        <div style="display:flex;gap:.6rem">
+          <input type="text" class="search-input" id="usuarios-search" placeholder="Buscar por nombre o email…">
+          <a class="btn ghost small" href="/api/admin/export/users.csv" id="usuarios-export">⬇ CSV</a>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Nombre</th><th>Email</th><th>DNI</th><th>Celular</th><th>Estrellas</th><th>Compras</th><th>Total gastado</th><th>2FA</th><th>Registrado</th><th></th></tr></thead>
+        <tbody id="usuarios-body"></tbody>
+      </table>
+      <p class="empty hidden" id="usuarios-empty">Sin usuarios todavía.</p>
+      <div class="pager" id="usuarios-pager"></div>
+    </div>
+  </div>
+
+  <div id="tab-referidos" class="tab-panel hidden">
+    <div class="card">
+      <div class="toolbar">
+        <h2 style="margin:0">Usuarios afiliados / referidos</h2>
+        <div style="display:flex;gap:.6rem">
+          <input type="text" class="search-input" id="referidos-search" placeholder="Buscar…">
+          <a class="btn ghost small" href="/api/admin/export/referrals.csv" id="referidos-export">⬇ CSV</a>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Usuario</th><th>Referido por</th><th>Compras</th><th>Estrellas</th><th>Fecha</th></tr></thead>
+        <tbody id="referidos-body"></tbody>
+      </table>
+      <p class="empty hidden" id="referidos-empty">Sin referidos todavía.</p>
+      <div class="pager" id="referidos-pager"></div>
+    </div>
+  </div>
+
+  <div id="tab-familias" class="tab-panel hidden">
+    <div class="card">
+      <h2>Cuentas compartidas / familiares</h2>
+      <table>
+        <thead><tr><th>Grupo</th><th>Dueño</th><th>Código</th><th>Miembros</th></tr></thead>
+        <tbody id="familias-body"></tbody>
+      </table>
+      <p class="empty hidden" id="familias-empty">Sin grupos todavía.</p>
+      <div class="pager" id="familias-pager"></div>
+    </div>
+  </div>
+
+  <div id="tab-compras" class="tab-panel hidden">
+    <div class="card">
+      <div class="toolbar">
+        <h2 style="margin:0">Compras registradas</h2>
+        <div style="display:flex;gap:.6rem">
+          <input type="text" class="search-input" id="compras-search" placeholder="Buscar por cliente o producto…">
+          <a class="btn ghost small" href="/api/admin/export/purchases.csv" id="compras-export">⬇ CSV</a>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Fecha</th><th>Cliente</th><th>Producto</th><th>Monto</th><th>Estrellas</th></tr></thead>
+        <tbody id="compras-body"></tbody>
+      </table>
+      <p class="empty hidden" id="compras-empty">Sin compras todavía.</p>
+      <div class="pager" id="compras-pager"></div>
+    </div>
+  </div>
+
+  <div id="tab-productos" class="tab-panel hidden">
+    <div class="card">
+      <h2>Nuevo producto</h2>
+      <div class="form-grid">
+        <div class="field" style="margin:0">
+          <label for="prod-name">Nombre</label>
+          <input type="text" id="prod-name" placeholder="Frappé de Lúcuma">
+        </div>
+        <div class="field" style="margin:0">
+          <label for="prod-photo">Foto (URL)</label>
+          <input type="text" id="prod-photo" placeholder="https://...">
+        </div>
+        <div class="field" style="margin:0">
+          <label for="prod-price">Precio (S/, opcional)</label>
+          <input type="number" id="prod-price" min="0" step="0.1" placeholder="18.50">
+        </div>
+        <button class="btn small" id="prod-submit-btn">Agregar producto</button>
+      </div>
+      <div class="msg" id="prod-msg"></div>
+    </div>
+    <div class="card">
+      <h2>Catálogo</h2>
+      <div id="productos-list"></div>
+      <p class="empty hidden" id="productos-empty">Sin productos todavía.</p>
+      <div class="pager" id="productos-pager"></div>
+    </div>
+  </div>
+
+  <div id="tab-promos" class="tab-panel hidden">
+    <div class="card">
+      <h2>Nueva promoción</h2>
+      <p class="empty" id="push-status" style="margin-bottom:.8rem"></p>
+      <div class="field">
+        <label for="promo-title">Título</label>
+        <input type="text" id="promo-title" placeholder="2x1 en frappés">
+      </div>
+      <div class="field">
+        <label for="promo-body">Mensaje</label>
+        <textarea id="promo-body" placeholder="Todos los viernes de 3pm a 6pm, 2x1 en frappés."></textarea>
+      </div>
+      <div class="field">
+        <label for="promo-photo">Foto de la promoción (URL, opcional)</label>
+        <input type="text" id="promo-photo" placeholder="https://...">
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr">
+        <div class="field" style="margin:0">
+          <label for="promo-starts">Vigencia desde (opcional)</label>
+          <input type="datetime-local" id="promo-starts">
+        </div>
+        <div class="field" style="margin:0">
+          <label for="promo-ends">Vigencia hasta (opcional)</label>
+          <input type="datetime-local" id="promo-ends">
+        </div>
+      </div>
+      <div class="field">
+        <label>Productos incluidos (opcional)</label>
+        <div class="checkbox-grid" id="promo-products-checkboxes"></div>
+      </div>
+      <button class="btn small" id="promo-submit-btn">Publicar y enviar</button>
+      <div class="msg" id="promo-msg"></div>
+    </div>
+    <div class="card">
+      <h2>Promociones publicadas</h2>
+      <div id="promos-list"></div>
+      <p class="empty hidden" id="promos-empty">Sin promociones todavía.</p>
+      <div class="pager" id="promos-pager"></div>
+    </div>
+  </div>
+
+  <div id="tab-reportes" class="tab-panel hidden">
+    <div class="card">
+      <h2>Resumen de promociones</h2>
+      <div class="stat-grid" id="reportes-summary"></div>
+    </div>
+
+    <div class="card">
+      <div class="toolbar">
+        <h2 style="margin:0">Top clientes por compras</h2>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+          <input type="text" class="search-input" id="topcli-search" placeholder="Buscar por nombre o email…">
+          <input type="number" id="topcli-min" min="1" value="1" placeholder="Mín. compras" style="width:110px">
+          <select id="topcli-sort">
+            <option value="num_compras">Ordenar: más compras</option>
+            <option value="total_gastado">Ordenar: más gastado</option>
+            <option value="comprasPorSemana">Ordenar: más frecuente</option>
+          </select>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Cliente</th><th>Compras</th><th>Total gastado</th><th>Compras / semana</th></tr></thead>
+        <tbody id="topcli-body"></tbody>
+      </table>
+      <p class="empty hidden" id="topcli-empty">Sin compras registradas todavía.</p>
+      <div class="pager" id="topcli-pager"></div>
+    </div>
+
+    <div class="card">
+      <div class="toolbar">
+        <h2 style="margin:0">Clientes recurrentes en promociones</h2>
+        <input type="text" class="search-input" id="recur-search" placeholder="Buscar por nombre o email…">
+      </div>
+      <table>
+        <thead><tr><th>Cliente</th><th>Promociones distintas</th><th>Canjes totales</th></tr></thead>
+        <tbody id="recur-body"></tbody>
+      </table>
+      <p class="empty hidden" id="recur-empty">Nadie ha canjeado una promoción todavía.</p>
+      <div class="pager" id="recur-pager"></div>
+    </div>
+  </div>
+
+  <div id="tab-perfil" class="tab-panel hidden">
+    <div class="card">
+      <h2>Nuevo campo de perfil</h2>
+      <p class="lead" style="margin-bottom:.8rem;font-size:.85rem">Pide cualquier dato adicional al cliente (ej. fecha de nacimiento) sin tocar código. Si lo marcas obligatorio, se le pedirá la próxima vez que entre a su cuenta.</p>
+      <div class="form-grid">
+        <div class="field" style="margin:0">
+          <label for="pf-label">Etiqueta (lo que ve el cliente)</label>
+          <input type="text" id="pf-label" placeholder="Fecha de nacimiento">
+        </div>
+        <div class="field" style="margin:0">
+          <label for="pf-key">Clave interna (sin espacios)</label>
+          <input type="text" id="pf-key" placeholder="fecha_nacimiento">
+        </div>
+        <div class="field" style="margin:0">
+          <label for="pf-type">Tipo</label>
+          <select id="pf-type">
+            <option value="text">Texto</option>
+            <option value="date">Fecha</option>
+            <option value="number">Número</option>
+          </select>
+        </div>
+        <div class="field" style="margin:0">
+          <label for="pf-required"><input type="checkbox" id="pf-required" style="width:auto;margin-right:.4rem">Obligatorio</label>
+        </div>
+        <button class="btn small" id="pf-submit-btn">Crear campo</button>
+      </div>
+      <div class="msg" id="pf-msg"></div>
+    </div>
+    <div class="card">
+      <h2>Campos configurados</h2>
+      <table>
+        <thead><tr><th>Etiqueta</th><th>Clave</th><th>Tipo</th><th>Obligatorio</th><th>Activo</th><th></th></tr></thead>
+        <tbody id="perfil-body"></tbody>
+      </table>
+      <p class="empty hidden" id="perfil-empty">Sin campos adicionales todavía.</p>
+    </div>
+  </div>
+
+  <div id="tab-suscriptores" class="tab-panel hidden">
+    <div class="card">
+      <h2>Suscritos a la apertura (pre-registro)</h2>
+      <table>
+        <thead><tr><th>Nombre</th><th>Teléfono</th><th>DNI</th><th>UNASAM</th><th>Fecha</th></tr></thead>
+        <tbody id="suscriptores-body"></tbody>
+      </table>
+      <p class="empty hidden" id="suscriptores-empty">Sin registros todavía.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script>
+// Todo dato que venga de un cliente o de otro admin (nombre, email, nombre
+// de grupo familiar, título/cuerpo de promo, etc.) pasa por acá antes de
+// insertarse con innerHTML — si no, alguien podría meter código en un campo
+// de texto (ej. el nombre de un grupo familiar) y que corra en la pantalla
+// del administrador que lo esté viendo.
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+let ADMIN_TOKEN = sessionStorage.getItem('admin_token') || '';
+const pageState = { usuarios: 1, referidos: 1, familias: 1, compras: 1, promos: 1, topcli: 1, recur: 1 };
+const searchState = { usuarios: '', referidos: '', compras: '', topcli: '', recur: '' };
+const LIMIT = 15;
+
+async function adminFetch(path){
+  const res = await fetch(path, { headers: { 'x-admin-token': ADMIN_TOKEN } });
+  if (res.status === 401) throw new Error('UNAUTHORIZED');
+  return res.json();
+}
+
+async function adminPost(path, body){
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-admin-token': ADMIN_TOKEN },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, data };
+}
+
+function setMsg(id, kind, text){
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = `msg show ${kind}`;
+}
+
+async function tryEnter(token){
+  ADMIN_TOKEN = token;
+  try {
+    await adminFetch('/api/admin/subscribers');
+    sessionStorage.setItem('admin_token', token);
+    document.getElementById('gate').classList.add('hidden');
+    document.getElementById('panel').classList.remove('hidden');
+    ['usuarios-export', 'referidos-export', 'compras-export'].forEach(id => {
+      const a = document.getElementById(id);
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        fetch(a.href, { headers: { 'x-admin-token': ADMIN_TOKEN } })
+          .then(r => r.blob())
+          .then(blob => {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = a.href.split('/').pop();
+            link.click();
+            URL.revokeObjectURL(url);
+          });
+      });
+    });
+    loadTraffic();
+    loadUsuarios();
+  } catch {
+    document.getElementById('gate-error').textContent = 'Token incorrecto.';
+    ADMIN_TOKEN = '';
+  }
+}
+
+document.getElementById('token-btn').addEventListener('click', () => {
+  const token = document.getElementById('token-input').value.trim();
+  if (token) tryEnter(token);
+});
+
+if (ADMIN_TOKEN) tryEnter(ADMIN_TOKEN);
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+    document.getElementById(`tab-${btn.dataset.tab}`).classList.remove('hidden');
+    if (btn.dataset.tab === 'referidos') loadReferidos();
+    if (btn.dataset.tab === 'familias') loadFamilias();
+    if (btn.dataset.tab === 'compras') loadCompras();
+    if (btn.dataset.tab === 'productos') loadProductos();
+    if (btn.dataset.tab === 'promos') { loadPromos(); loadProductCheckboxes(); }
+    if (btn.dataset.tab === 'reportes') { loadReportesSummary(); loadTopClientes(1); loadRecurrentes(1); }
+    if (btn.dataset.tab === 'perfil') loadPerfilFields();
+    if (btn.dataset.tab === 'suscriptores') loadSuscriptores();
+  });
+});
+
+function renderPager(id, page, total, limit, onChange){
+  const el = document.getElementById(id);
+  const totalPages = Math.max(Math.ceil(total / limit), 1);
+  el.innerHTML = '';
+  const prev = document.createElement('button');
+  prev.className = 'btn ghost small';
+  prev.textContent = '← Anterior';
+  prev.disabled = page <= 1;
+  prev.onclick = () => onChange(page - 1);
+  const info = document.createElement('span');
+  info.className = 'pill';
+  info.textContent = `Página ${page} de ${totalPages} · ${total} registros`;
+  const next = document.createElement('button');
+  next.className = 'btn ghost small';
+  next.textContent = 'Siguiente →';
+  next.disabled = page >= totalPages;
+  next.onclick = () => onChange(page + 1);
+  el.append(prev, info, next);
+}
+
+function drawChart(containerId, entries, labelKey, valueKey, formatLabel){
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  const max = Math.max(...entries.map(e => e[valueKey]), 1);
+  entries.forEach(e => {
+    const wrap = document.createElement('div');
+    wrap.className = 'bar-wrap';
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.style.height = `${(e[valueKey] / max) * 100}%`;
+    bar.title = `${e[valueKey]} compras`;
+    const label = document.createElement('div');
+    label.className = 'bar-label';
+    label.textContent = formatLabel ? formatLabel(e[labelKey]) : e[labelKey];
+    wrap.append(bar, label);
+    el.appendChild(wrap);
+  });
+}
+
+async function loadTraffic(){
+  const data = await adminFetch('/api/admin/stats/traffic');
+  drawChart('chart-hour', data.byHour, 'hora', 'total', h => String(h).padStart(2, '0') + 'h');
+  drawChart('chart-weekday', data.byWeekday, 'nombre', 'total', n => n.slice(0, 3));
+}
+
+function debounce(fn, ms){
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+document.getElementById('usuarios-search').addEventListener('input', debounce((e) => {
+  searchState.usuarios = e.target.value.trim();
+  loadUsuarios(1);
+}, 350));
+
+document.getElementById('referidos-search').addEventListener('input', debounce((e) => {
+  searchState.referidos = e.target.value.trim();
+  loadReferidos(1);
+}, 350));
+
+document.getElementById('compras-search').addEventListener('input', debounce((e) => {
+  searchState.compras = e.target.value.trim();
+  loadCompras(1);
+}, 350));
+
+async function loadUsuarios(page = pageState.usuarios){
+  pageState.usuarios = page;
+  const q = searchState.usuarios ? `&q=${encodeURIComponent(searchState.usuarios)}` : '';
+  const data = await adminFetch(`/api/admin/users?page=${page}&limit=${LIMIT}${q}`);
+  const body = document.getElementById('usuarios-body');
+  body.innerHTML = '';
+  document.getElementById('usuarios-empty').classList.toggle('hidden', data.items.length > 0);
+  data.items.forEach(u => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escapeHtml(u.name)}</td><td>${escapeHtml(u.email)}</td><td>${escapeHtml(u.dni) || '—'}</td><td>${escapeHtml(u.telefono) || '—'}</td><td>${u.puntos} ⭐</td><td>${u.num_compras}</td>
+      <td>S/ ${Number(u.total_gastado).toFixed(2)}</td><td>${u.totp_enabled ? '✅' : '—'}</td><td>${escapeHtml(u.created_at)}</td><td></td>`;
+    const actionTd = tr.lastElementChild;
+    const btn = document.createElement('button');
+    btn.className = 'btn ghost small';
+    btn.textContent = 'Forzar cierre de sesión';
+    btn.title = 'Cierra la sesión de este cliente en todos sus dispositivos';
+    btn.onclick = async () => {
+      if (!confirm(`¿Cerrar sesión de ${u.email} en todos sus dispositivos?`)) return;
+      await adminPost('/api/admin/users/force-logout', { email: u.email });
+      btn.textContent = '✅ Sesión cerrada';
+      btn.disabled = true;
+    };
+    actionTd.appendChild(btn);
+    body.appendChild(tr);
+  });
+  renderPager('usuarios-pager', data.page, data.total, data.limit, loadUsuarios);
+}
+
+document.getElementById('pc-submit-btn').addEventListener('click', async () => {
+  const email = document.getElementById('pc-email').value.trim();
+  const monto = Number(document.getElementById('pc-monto').value);
+  const producto = document.getElementById('pc-producto').value.trim();
+  if (!email || !(monto > 0)) { setMsg('pc-msg', 'error', 'Ingresa un email y un monto válido.'); return; }
+  const { ok, data } = await adminPost('/api/admin/purchases', { email, monto, producto });
+  if (!ok) { setMsg('pc-msg', 'error', data.error || 'No se pudo registrar la compra.'); return; }
+  setMsg('pc-msg', 'ok', `✅ Compra registrada: +${data.puntos} estrellas (saldo: ${data.balance}).`);
+  document.getElementById('pc-email').value = '';
+  document.getElementById('pc-monto').value = '';
+  document.getElementById('pc-producto').value = '';
+  loadUsuarios();
+});
+
+async function loadReferidos(page = pageState.referidos){
+  pageState.referidos = page;
+  const q = searchState.referidos ? `&q=${encodeURIComponent(searchState.referidos)}` : '';
+  const data = await adminFetch(`/api/admin/referrals?page=${page}&limit=${LIMIT}${q}`);
+  const body = document.getElementById('referidos-body');
+  body.innerHTML = '';
+  document.getElementById('referidos-empty').classList.toggle('hidden', data.items.length > 0);
+  data.items.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escapeHtml(r.name)} (${escapeHtml(r.email)})</td><td>${escapeHtml(r.referrer_name)} (${escapeHtml(r.referrer_email)})</td>
+      <td>${r.num_compras}</td><td>${r.puntos} ⭐</td><td>${escapeHtml(r.fecha_registro)}</td>`;
+    body.appendChild(tr);
+  });
+  renderPager('referidos-pager', data.page, data.total, data.limit, loadReferidos);
+}
+
+async function loadFamilias(page = pageState.familias){
+  pageState.familias = page;
+  const data = await adminFetch(`/api/admin/family-groups?page=${page}&limit=${LIMIT}`);
+  const body = document.getElementById('familias-body');
+  body.innerHTML = '';
+  document.getElementById('familias-empty').classList.toggle('hidden', data.items.length > 0);
+  data.items.forEach(g => {
+    const tr = document.createElement('tr');
+    const members = g.members.map(m => escapeHtml(m.name)).join(', ') || '—';
+    tr.innerHTML = `<td>${escapeHtml(g.name)}</td><td>${escapeHtml(g.owner_name)}</td><td><code>${escapeHtml(g.invite_code)}</code></td><td>${members} (${g.num_miembros})</td>`;
+    body.appendChild(tr);
+  });
+  renderPager('familias-pager', data.page, data.total, data.limit, loadFamilias);
+}
+
+async function loadCompras(page = pageState.compras){
+  pageState.compras = page;
+  const q = searchState.compras ? `&q=${encodeURIComponent(searchState.compras)}` : '';
+  const data = await adminFetch(`/api/admin/purchases?page=${page}&limit=${LIMIT}${q}`);
+  const body = document.getElementById('compras-body');
+  body.innerHTML = '';
+  document.getElementById('compras-empty').classList.toggle('hidden', data.items.length > 0);
+  data.items.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escapeHtml(p.created_at)}</td><td>${escapeHtml(p.user_name)} (${escapeHtml(p.user_email)})</td><td>${escapeHtml(p.producto) || '—'}</td>
+      <td>S/ ${Number(p.monto).toFixed(2)}</td><td>+${p.puntos} ⭐</td>`;
+    body.appendChild(tr);
+  });
+  renderPager('compras-pager', data.page, data.total, data.limit, loadCompras);
+}
+
+async function loadProductCheckboxes(){
+  const data = await adminFetch('/api/admin/products/active');
+  const el = document.getElementById('promo-products-checkboxes');
+  el.innerHTML = '';
+  if (data.items.length === 0) {
+    el.innerHTML = '<span class="empty">Agrega productos en la pestaña Productos para poder asociarlos.</span>';
+    return;
+  }
+  data.items.forEach(prod => {
+    const label = document.createElement('label');
+    label.className = 'checkbox-item';
+    const photo = prod.photo_url ? `<img src="${escapeHtml(prod.photo_url)}" alt="">` : '';
+    label.innerHTML = `<input type="checkbox" value="${prod.id}"> ${photo}<span>${escapeHtml(prod.name)}</span>`;
+    el.appendChild(label);
+  });
+}
+
+function fmtDate(str){
+  return str ? str.replace('T', ' ') : '—';
+}
+
+async function loadPromos(page = pageState.promos){
+  pageState.promos = page;
+  const data = await adminFetch(`/api/admin/promotions?page=${page}&limit=10`);
+  document.getElementById('push-status').innerHTML = data.pushConfigured
+    ? '<span class="pill">🔔 Push activado — se enviará a todos los suscritos</span>'
+    : '<span class="pill warn">⚠ Push no configurado (VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY) — solo se mostrará el banner en la cuenta del cliente</span>';
+
+  const list = document.getElementById('promos-list');
+  list.innerHTML = '';
+  document.getElementById('promos-empty').classList.toggle('hidden', data.items.length > 0);
+  data.items.forEach(p => {
+    const row = document.createElement('div');
+    row.className = `promo-row ${p.active ? '' : 'inactive'}`;
+
+    const photoImg = p.photo_url ? `<img class="promo-photo" src="${escapeHtml(p.photo_url)}" alt="">` : '';
+    const productChips = (p.products || []).map(prod => `<span class="chip">${escapeHtml(prod.name)}</span>`).join('') || '<span class="empty" style="padding:0">Sin productos asociados</span>';
+    const codesHtml = (p.codes || []).map(c => `
+      <div class="code-row">
+        <span><code>${escapeHtml(c.code)}</code> ${c.label ? `— ${escapeHtml(c.label)}` : ''}</span>
+        <span class="pill">${c.uses_count}${c.max_uses ? ' / ' + c.max_uses : ''} usos</span>
+      </div>`).join('');
+
+    const main = document.createElement('div');
+    main.className = 'promo-main';
+    main.innerHTML = `
+      ${photoImg}
+      <div style="flex:1;min-width:0">
+        <b>${escapeHtml(p.title)}</b> ${p.active ? '' : '<span class="pill">Inactiva</span>'}
+        <span class="pill">${escapeHtml(p.publication_code) || ''}</span>
+        ${p.activated_at
+          ? `<span class="pill">✅ Enviada el ${fmtDate(p.activated_at)}</span>`
+          : `<span class="pill warn">📅 Programada — se enviará el ${fmtDate(p.starts_at)}</span>`}
+        <p style="font-size:.85rem;margin-top:.3rem">${escapeHtml(p.body)}</p>
+        <p style="font-size:.72rem;opacity:.6;margin-top:.3rem">
+          Vigencia: ${fmtDate(p.starts_at)} → ${fmtDate(p.ends_at)} · enviada a ${p.pushed_to} dispositivos ·
+          canjeada por ${p.redeemedCount || 0} cliente(s)
+        </p>
+        <div style="margin-top:.4rem">${productChips}</div>
+        <div id="codes-${p.id}">${codesHtml}</div>
+        <div class="code-add">
+          <input type="text" id="code-input-${p.id}" placeholder="CÓDIGO">
+          <input type="text" id="code-label-${p.id}" placeholder="Etiqueta (ej. Sucursal Centro)">
+          <input type="number" id="code-max-${p.id}" placeholder="Máx. usos" style="width:90px">
+          <button class="btn ghost small" data-add-code="${p.id}">+ Código de canje</button>
+        </div>
+      </div>`;
+    row.appendChild(main);
+
+    const actions = document.createElement('div');
+    actions.style.display = 'flex';
+    actions.style.flexDirection = 'column';
+    actions.style.gap = '.4rem';
+
+    const redeemersBtn = document.createElement('button');
+    redeemersBtn.className = 'btn ghost small';
+    redeemersBtn.textContent = 'Ver quiénes canjearon';
+    redeemersBtn.onclick = async () => {
+      const data = await adminFetch(`/api/admin/promotions/redeemers?id=${p.id}`);
+      if (!data.items || data.items.length === 0) { alert('Todavía nadie ha canjeado esta promoción.'); return; }
+      const lines = data.items.map(r => `• ${r.name} (${r.email}) — código ${r.code}, ${fmtDate(r.redeemed_at)}`);
+      alert(`Canjearon "${p.title}":\n\n${lines.join('\n')}`);
+    };
+    actions.appendChild(redeemersBtn);
+
+    const nonRedeemersBtn = document.createElement('button');
+    nonRedeemersBtn.className = 'btn ghost small';
+    nonRedeemersBtn.textContent = 'Ver quiénes NO canjearon';
+    nonRedeemersBtn.onclick = async () => {
+      const q = prompt('Buscar por nombre o correo (opcional, vacío = todos):', '') || '';
+      let page = 1;
+      while (true) {
+        const qs = new URLSearchParams({ id: p.id, page, limit: 20 });
+        if (q) qs.set('q', q);
+        const data = await adminFetch(`/api/admin/promotions/non-redeemers?${qs}`);
+        if (!data.items || data.items.length === 0) {
+          alert(page === 1 ? 'Todos los clientes (o los que coinciden con la búsqueda) ya canjearon esta promoción.' : 'No hay más resultados.');
+          break;
+        }
+        const totalPages = Math.max(Math.ceil(data.total / data.limit), 1);
+        const lines = data.items.map(u => `• ${u.name} (${u.email})`);
+        const seeMore = page < totalPages
+          && confirm(`NO canjearon "${p.title}" — página ${page}/${totalPages} de ${data.total} cliente(s):\n\n${lines.join('\n')}\n\n¿Ver siguiente página?`);
+        if (!seeMore) {
+          if (page >= totalPages) alert(`NO canjearon "${p.title}" (${data.total} en total):\n\n${lines.join('\n')}`);
+          break;
+        }
+        page += 1;
+      }
+    };
+    actions.appendChild(nonRedeemersBtn);
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn ghost small';
+    editBtn.textContent = 'Editar';
+    editBtn.onclick = async () => {
+      const title = prompt('Título', p.title);
+      if (title === null) return;
+      const body = prompt('Mensaje', p.body);
+      if (body === null) return;
+      const photoUrl = prompt('Foto (URL, vacío = sin foto)', p.photo_url || '');
+      if (photoUrl === null) return;
+      const { ok, data } = await adminPost('/api/admin/promotions/update', { id: p.id, title, body, photoUrl });
+      if (!ok) { alert(data.error || 'No se pudo editar.'); return; }
+      loadPromos(page);
+    };
+    actions.appendChild(editBtn);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn ghost small';
+    deleteBtn.textContent = 'Eliminar';
+    deleteBtn.onclick = async () => {
+      if (!confirm(`¿Eliminar definitivamente "${p.title}"? Si ya tiene canjes, no se podrá y hay que desactivarla en su lugar.`)) return;
+      const { ok, data } = await adminPost('/api/admin/promotions/delete', { id: p.id });
+      if (!ok) { alert(data.error); return; }
+      loadPromos(page);
+    };
+    actions.appendChild(deleteBtn);
+
+    if (p.active) {
+      const btn = document.createElement('button');
+      btn.className = 'btn ghost small';
+      btn.textContent = 'Desactivar';
+      btn.onclick = async () => { await adminPost('/api/admin/promotions/deactivate', { id: p.id }); loadPromos(page); };
+      actions.appendChild(btn);
+    }
+    row.appendChild(actions);
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll('[data-add-code]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const promotionId = btn.dataset.addCode;
+      const code = document.getElementById(`code-input-${promotionId}`).value.trim();
+      const label = document.getElementById(`code-label-${promotionId}`).value.trim();
+      const maxUses = document.getElementById(`code-max-${promotionId}`).value;
+      const { ok } = await adminPost('/api/admin/promotions/codes', { promotionId, code, label, maxUses: maxUses || null });
+      if (ok) loadPromos(page);
+    });
+  });
+
+  renderPager('promos-pager', data.page, data.total, data.limit, loadPromos);
+}
+
+async function submitPromotion(confirmDuplicate){
+  const title = document.getElementById('promo-title').value.trim();
+  const body = document.getElementById('promo-body').value.trim();
+  const photoUrl = document.getElementById('promo-photo').value.trim();
+  const startsAt = document.getElementById('promo-starts').value;
+  const endsAt = document.getElementById('promo-ends').value;
+  const productIds = [...document.querySelectorAll('#promo-products-checkboxes input:checked')].map(i => Number(i.value));
+  if (!title || !body) { setMsg('promo-msg', 'error', 'Completa título y mensaje.'); return; }
+
+  const { ok, data } = await adminPost('/api/admin/promotions', { title, body, photoUrl, startsAt, endsAt, productIds, confirmDuplicate });
+  if (!ok && data.duplicate) {
+    if (confirm(`${data.error}\n\n¿Publicar de todas formas?`)) return submitPromotion(true);
+    setMsg('promo-msg', 'error', 'No se publicó — ya existe una promoción activa con ese título.');
+    return;
+  }
+  if (!ok) { setMsg('promo-msg', 'error', data.error || 'No se pudo publicar.'); return; }
+
+  const pushMsg = data.scheduled
+    ? `📅 Programada (${data.promotion.publication_code}) — se avisará por push y Wallet el ${data.promotion.starts_at}.`
+    : `✅ Publicada (${data.promotion.publication_code}). Push enviado a ${data.pushSent} dispositivo(s) y encolado para ${data.walletPushQueued} wallet(s).`;
+  setMsg('promo-msg', 'ok', pushMsg);
+  document.getElementById('promo-title').value = '';
+  document.getElementById('promo-body').value = '';
+  document.getElementById('promo-photo').value = '';
+  document.getElementById('promo-starts').value = '';
+  document.getElementById('promo-ends').value = '';
+  document.querySelectorAll('#promo-products-checkboxes input:checked').forEach(i => { i.checked = false; });
+  loadPromos(1);
+}
+
+document.getElementById('promo-submit-btn').addEventListener('click', () => submitPromotion(false));
+
+// ═══ Reportes ═══
+
+async function loadReportesSummary(){
+  const data = await adminFetch('/api/admin/promotions/summary');
+  document.getElementById('reportes-summary').innerHTML = `
+    <div class="stat-box"><b>${data.totalActivePromotions}</b><span>PROMOCIONES ACTIVAS</span></div>
+    <div class="stat-box"><b>${data.totalUsers}</b><span>CLIENTES EN LA WALLET</span></div>
+    <div class="stat-box"><b>${data.totalRedeemers}</b><span>CANJEARON ALGUNA PROMO</span></div>
+    <div class="stat-box"><b>${data.totalNeverRedeemed}</b><span>NUNCA CANJEARON</span></div>
+    <div class="stat-box"><b>${data.redemptionRatePct}%</b><span>TASA DE CANJE</span></div>
+  `;
+}
+
+async function loadTopClientes(page = pageState.topcli){
+  pageState.topcli = page;
+  const q = searchState.topcli ? `&q=${encodeURIComponent(searchState.topcli)}` : '';
+  const minCompras = document.getElementById('topcli-min').value || 1;
+  const sortBy = document.getElementById('topcli-sort').value;
+  const data = await adminFetch(`/api/admin/reports/top-customers?page=${page}&limit=15&minCompras=${minCompras}&sortBy=${sortBy}${q}`);
+  const body = document.getElementById('topcli-body');
+  body.innerHTML = '';
+  document.getElementById('topcli-empty').classList.toggle('hidden', data.items.length > 0);
+  data.items.forEach(c => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escapeHtml(c.name)} (${escapeHtml(c.email)})</td><td>${c.num_compras}</td>
+      <td>S/ ${Number(c.total_gastado).toFixed(2)}</td><td>${c.comprasPorSemana != null ? c.comprasPorSemana : '—'}</td>`;
+    body.appendChild(tr);
+  });
+  renderPager('topcli-pager', data.page, data.total, data.limit, loadTopClientes);
+}
+
+async function loadRecurrentes(page = pageState.recur){
+  pageState.recur = page;
+  const q = searchState.recur ? `&q=${encodeURIComponent(searchState.recur)}` : '';
+  const data = await adminFetch(`/api/admin/reports/recurring-promo-customers?page=${page}&limit=15${q}`);
+  const body = document.getElementById('recur-body');
+  body.innerHTML = '';
+  document.getElementById('recur-empty').classList.toggle('hidden', data.items.length > 0);
+  data.items.forEach(c => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escapeHtml(c.name)} (${escapeHtml(c.email)})</td><td>${c.promos_canjeadas}</td><td>${c.total_canjes}</td>`;
+    body.appendChild(tr);
+  });
+  renderPager('recur-pager', data.page, data.total, data.limit, loadRecurrentes);
+}
+
+document.getElementById('topcli-search').addEventListener('input', debounce((e) => {
+  searchState.topcli = e.target.value.trim();
+  loadTopClientes(1);
+}, 350));
+document.getElementById('topcli-min').addEventListener('input', debounce(() => loadTopClientes(1), 350));
+document.getElementById('topcli-sort').addEventListener('change', () => loadTopClientes(1));
+
+document.getElementById('recur-search').addEventListener('input', debounce((e) => {
+  searchState.recur = e.target.value.trim();
+  loadRecurrentes(1);
+}, 350));
+
+// ═══ Productos ═══
+
+async function loadProductos(page = pageState.productos || 1){
+  pageState.productos = page;
+  const data = await adminFetch(`/api/admin/products?page=${page}&limit=15`);
+  const list = document.getElementById('productos-list');
+  list.innerHTML = '';
+  document.getElementById('productos-empty').classList.toggle('hidden', data.items.length > 0);
+  data.items.forEach(prod => {
+    const row = document.createElement('div');
+    row.className = `product-card ${prod.active ? '' : 'inactive'}`;
+    const photo = prod.photo_url ? `<img src="${escapeHtml(prod.photo_url)}" alt="">` : '<div style="width:56px;height:56px;border-radius:10px;background:var(--bone)"></div>';
+    row.innerHTML = `${photo}
+      <div style="flex:1">
+        <b>${escapeHtml(prod.name)}</b> ${prod.active ? '' : '<span class="pill">Inactivo</span>'}
+        ${prod.price != null ? `<p style="font-size:.8rem;opacity:.7">S/ ${Number(prod.price).toFixed(2)}</p>` : ''}
+      </div>`;
+    const actions = document.createElement('div');
+    actions.style.display = 'flex';
+    actions.style.gap = '.4rem';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn ghost small';
+    editBtn.textContent = 'Editar';
+    editBtn.onclick = async () => {
+      const name = prompt('Nombre', prod.name);
+      if (name === null) return;
+      const photoUrl = prompt('Foto (URL, vacío = sin foto)', prod.photo_url || '');
+      if (photoUrl === null) return;
+      const price = prompt('Precio (S/, vacío = sin precio)', prod.price != null ? prod.price : '');
+      if (price === null) return;
+      const { ok, data } = await adminPost('/api/admin/products/update', { id: prod.id, name, photoUrl, price: price || null });
+      if (!ok) { alert(data.error || 'No se pudo editar.'); return; }
+      loadProductos(page);
+    };
+    actions.appendChild(editBtn);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn ghost small';
+    deleteBtn.textContent = 'Eliminar';
+    deleteBtn.onclick = async () => {
+      if (!confirm(`¿Eliminar definitivamente "${prod.name}"? Si está en alguna promoción, no se podrá y hay que desactivarlo en su lugar.`)) return;
+      const { ok, data } = await adminPost('/api/admin/products/delete', { id: prod.id });
+      if (!ok) { alert(data.error); return; }
+      loadProductos(page);
+    };
+    actions.appendChild(deleteBtn);
+
+    if (prod.active) {
+      const btn = document.createElement('button');
+      btn.className = 'btn ghost small';
+      btn.textContent = 'Desactivar';
+      btn.onclick = async () => { await adminPost('/api/admin/products/deactivate', { id: prod.id }); loadProductos(page); };
+      actions.appendChild(btn);
+    }
+    row.appendChild(actions);
+    list.appendChild(row);
+  });
+  renderPager('productos-pager', data.page, data.total, data.limit, loadProductos);
+}
+
+document.getElementById('prod-submit-btn').addEventListener('click', async () => {
+  const name = document.getElementById('prod-name').value.trim();
+  const photoUrl = document.getElementById('prod-photo').value.trim();
+  const price = document.getElementById('prod-price').value;
+  if (!name) { setMsg('prod-msg', 'error', 'Ingresa un nombre.'); return; }
+  const { ok, data } = await adminPost('/api/admin/products', { name, photoUrl, price: price || null });
+  if (!ok) { setMsg('prod-msg', 'error', data.error || 'No se pudo agregar.'); return; }
+  setMsg('prod-msg', 'ok', `✅ ${data.product.name} agregado al catálogo.`);
+  document.getElementById('prod-name').value = '';
+  document.getElementById('prod-photo').value = '';
+  document.getElementById('prod-price').value = '';
+  loadProductos();
+});
+
+// ═══ Campos de perfil ═══
+
+const PF_TYPE_LABELS = { text: 'Texto', number: 'Número', date: 'Fecha' };
+
+async function loadPerfilFields(){
+  const data = await adminFetch('/api/admin/profile-fields');
+  const body = document.getElementById('perfil-body');
+  body.innerHTML = '';
+  document.getElementById('perfil-empty').classList.toggle('hidden', data.items.length > 0);
+  data.items.forEach(field => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escapeHtml(field.label)}</td><td><code>${escapeHtml(field.field_key)}</code></td>
+      <td>${escapeHtml(PF_TYPE_LABELS[field.field_type] || field.field_type)}</td>
+      <td>${field.required ? '✅' : '—'}</td><td>${field.active ? '✅' : '—'}</td><td></td>`;
+    const actionTd = tr.lastElementChild;
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn ghost small';
+    editBtn.textContent = 'Editar';
+    editBtn.onclick = async () => {
+      const label = prompt('Etiqueta', field.label);
+      if (label === null) return;
+      const required = confirm('¿Obligatorio? Aceptar = sí, Cancelar = no.');
+      const { ok, data } = await adminPost('/api/admin/profile-fields/update', { id: field.id, label, required });
+      if (!ok) { alert(data.error || 'No se pudo editar.'); return; }
+      loadPerfilFields();
+    };
+    actionTd.appendChild(editBtn);
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'btn ghost small';
+    toggleBtn.textContent = field.active ? 'Desactivar' : 'Activar';
+    toggleBtn.onclick = async () => {
+      await adminPost('/api/admin/profile-fields/update', { id: field.id, active: !field.active });
+      loadPerfilFields();
+    };
+    actionTd.appendChild(toggleBtn);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn ghost small';
+    deleteBtn.textContent = 'Eliminar';
+    deleteBtn.onclick = async () => {
+      if (!confirm(`¿Eliminar definitivamente "${field.label}"? Si algún cliente ya tiene un valor guardado, no se podrá y hay que desactivarlo en su lugar.`)) return;
+      const { ok, data } = await adminPost('/api/admin/profile-fields/delete', { id: field.id });
+      if (!ok) { alert(data.error); return; }
+      loadPerfilFields();
+    };
+    actionTd.appendChild(deleteBtn);
+
+    body.appendChild(tr);
+  });
+}
+
+document.getElementById('pf-submit-btn').addEventListener('click', async () => {
+  const label = document.getElementById('pf-label').value.trim();
+  const key = document.getElementById('pf-key').value.trim();
+  const type = document.getElementById('pf-type').value;
+  const required = document.getElementById('pf-required').checked;
+  if (!label || !key) { setMsg('pf-msg', 'error', 'Ingresa una etiqueta y una clave.'); return; }
+  const { ok, data } = await adminPost('/api/admin/profile-fields', { label, key, type, required });
+  if (!ok) { setMsg('pf-msg', 'error', data.error || 'No se pudo crear el campo.'); return; }
+  setMsg('pf-msg', 'ok', `✅ Campo "${data.field.label}" creado.`);
+  document.getElementById('pf-label').value = '';
+  document.getElementById('pf-key').value = '';
+  document.getElementById('pf-required').checked = false;
+  loadPerfilFields();
+});
+
+async function loadSuscriptores(){
+  const data = await adminFetch('/api/admin/subscribers');
+  const body = document.getElementById('suscriptores-body');
+  body.innerHTML = '';
+  document.getElementById('suscriptores-empty').classList.toggle('hidden', data.subscribers.length > 0);
+  data.subscribers.forEach(s => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escapeHtml(s.nombre)}</td><td>${escapeHtml(s.telefono)}</td><td>${escapeHtml(s.dni)}</td><td>${escapeHtml(s.unasam)}</td><td>${escapeHtml(s.created_at)}</td>`;
+    body.appendChild(tr);
+  });
+}
+</script>
+</body>
+</html>

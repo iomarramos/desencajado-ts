@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DESENCAJADO — Mi cuenta</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700;800;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --yellow:#F5C200; --navy:#0D1B4B; --blue:#1E6FCC; --fuchsia:#FF0077; --bone:#F8F4EB; --green:#1FA97E;
+  --grad:linear-gradient(90deg,var(--fuchsia),var(--blue));
+  --fd:'Poppins',system-ui,sans-serif; --fb:'Inter',system-ui,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--fb);background:var(--bone);color:var(--navy);min-height:100vh}
+::selection{background:var(--fuchsia);color:#fff}
+
+header{display:flex;justify-content:space-between;align-items:center;padding:1.2rem 5vw;background:var(--navy);position:sticky;top:0;z-index:20}
+.logo{display:flex;align-items:center;gap:.6rem;text-decoration:none;font-family:var(--fd);font-weight:900;
+  font-size:1.1rem;color:#fff}
+.logo svg{width:36px;height:36px}
+.tag{color:var(--yellow);font-weight:700;font-size:.8rem}
+
+main{max-width:760px;margin:0 auto;padding:2rem 5vw 5rem}
+.card{background:#fff;border-radius:22px;padding:2.2rem;box-shadow:0 20px 50px -30px rgba(13,27,75,.35);margin-bottom:1.4rem;
+  animation:rise .4s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.kicker{font-size:.72rem;font-weight:800;letter-spacing:.24em;color:var(--fuchsia);text-transform:uppercase}
+h1{font-family:var(--fd);font-weight:900;font-size:clamp(1.6rem,3.4vw,2.2rem);margin:.4rem 0 1rem}
+p.lead{line-height:1.7;opacity:.85;max-width:56ch}
+
+.btn{display:inline-flex;align-items:center;gap:.6rem;padding:1rem 1.8rem;border-radius:999px;font-family:var(--fd);font-weight:700;
+  font-size:.95rem;text-decoration:none;border:none;cursor:pointer;transition:.25s;background:var(--grad);color:#fff;
+  box-shadow:0 10px 26px -10px rgba(255,0,119,.55)}
+.btn:hover{transform:translateY(-3px) scale(1.02)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn.spinning{animation:spinbtn .7s linear}
+@keyframes spinbtn{to{transform:rotate(360deg)}}
+.btn.ghost{background:none;box-shadow:none;color:var(--navy);border:2px solid rgba(13,27,75,.2)}
+.btn.google{background:#fff;color:#1f1f1f;border:2px solid rgba(13,27,75,.15);box-shadow:none}
+.btn.small{padding:.55rem 1.1rem;font-size:.8rem}
+.btn.wallet{background:#000;color:#fff;box-shadow:none;padding:.7rem 1.4rem}
+
+.spinner{width:34px;height:34px;border-radius:50%;border:4px solid rgba(13,27,75,.15);border-top-color:var(--fuchsia);
+  animation:spin .8s linear infinite;margin:3rem auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.qr-box{display:flex;flex-direction:column;align-items:center;gap:1rem;margin:1.6rem 0}
+#qr-canvas{padding:.8rem;background:#fff;border-radius:16px;border:2px solid rgba(13,27,75,.12)}
+.secret{font-family:monospace;background:var(--bone);padding:.6rem 1rem;border-radius:10px;letter-spacing:.08em;font-size:.9rem;word-break:break-all}
+
+.otp-row{display:flex;gap:.8rem;margin-top:1.2rem;flex-wrap:wrap}
+input.otp{padding:1rem 1.3rem;border-radius:14px;border:2px solid rgba(13,27,75,.2);font-size:1.3rem;letter-spacing:.3em;
+  font-family:monospace;width:180px;text-align:center}
+input.otp:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 4px rgba(30,111,204,.18)}
+
+.wallet-hero{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
+.avatar{width:64px;height:64px;border-radius:50%;background:var(--navy);object-fit:cover}
+.balance{background:var(--navy);color:#fff;border-radius:18px;padding:1.4rem 1.8rem;text-align:center;border-bottom:5px solid var(--yellow)}
+.balance b{display:block;font-family:var(--fd);font-size:2.2rem;font-weight:900;color:var(--yellow)}
+.balance span{font-size:.7rem;letter-spacing:.16em;font-weight:700}
+
+.tier-badge{display:inline-flex;align-items:center;gap:.4rem;padding:.35rem .9rem;border-radius:999px;font-family:var(--fd);
+  font-weight:800;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;margin-top:.5rem}
+.tier-badge.bronce{background:#F0DCC4;color:#7A4A1E}
+.tier-badge.plata{background:#E4E7EC;color:#43505E}
+.tier-badge.oro{background:#FCE8A8;color:#7A5B00}
+.tier-caption{font-size:.78rem;opacity:.65;margin-top:.3rem}
+
+.actions-row{display:flex;gap:.7rem;flex-wrap:wrap;margin-top:1.4rem}
+
+h2{font-family:var(--fd);font-weight:900;font-size:1.2rem;margin-bottom:.8rem}
+
+.progress-track{background:var(--bone);border-radius:999px;height:20px;overflow:hidden;margin:.9rem 0 .5rem}
+.progress-fill{height:100%;background:var(--grad);border-radius:999px;transition:width .6s ease;min-width:6%}
+.progress-caption{display:flex;justify-content:space-between;font-size:.82rem;font-weight:600;opacity:.75}
+.reward-ready{background:linear-gradient(90deg,#FFF3D6,#FFE8B8);border:2px dashed var(--yellow);border-radius:14px;
+  padding:.9rem 1.2rem;margin-top:1rem;font-weight:700;font-size:.88rem;display:none}
+.reward-ready.show{display:block}
+
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{text-align:left;padding:.6rem .4rem;border-bottom:1px solid rgba(13,27,75,.1)}
+th{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;opacity:.6}
+.empty{opacity:.6;font-size:.9rem;padding:1rem 0}
+
+.ref-box{display:flex;gap:.8rem;align-items:center;flex-wrap:wrap;background:var(--bone);border-radius:14px;padding:1rem 1.2rem}
+.ref-box code{font-weight:700;font-family:monospace}
+
+.field{display:grid;gap:.35rem;margin-bottom:.9rem}
+label{font-weight:700;font-size:.85rem}
+input[type=text],input[type=number]{padding:.9rem 1.2rem;border-radius:14px;border:2px solid rgba(13,27,75,.2);font-family:var(--fb);font-size:1rem}
+.msg{margin-top:1rem;border-radius:14px;padding:.9rem 1.2rem;font-weight:600;font-size:.9rem;display:none}
+.msg.show{display:block}
+.msg.ok{background:var(--navy);color:#fff;border-left:6px solid var(--yellow)}
+.msg.error{background:#fff0f6;color:var(--fuchsia);border-left:6px solid var(--fuchsia)}
+
+.promo{background:var(--navy);color:#fff;border-radius:18px;padding:1.2rem 1.5rem;margin-bottom:1rem;
+  display:flex;gap:1rem;align-items:flex-start;border-left:6px solid var(--yellow);
+  animation:rise .4s ease both}
+.promo-photo{width:64px;height:64px;border-radius:12px;object-fit:cover;flex-shrink:0}
+.promo-body{flex:1;min-width:0}
+.promo b{font-family:var(--fd);font-size:1rem;display:block;margin-bottom:.2rem}
+.promo p{font-size:.85rem;opacity:.9;line-height:1.5}
+.promo .vigencia{font-size:.72rem;opacity:.7;margin-top:.3rem}
+.promo .chip{display:inline-block;padding:.1rem .5rem;border-radius:999px;background:rgba(255,255,255,.15);font-size:.68rem;margin:.3rem .3rem 0 0}
+.promo-close{background:none;border:none;color:var(--yellow);font-size:1.1rem;cursor:pointer;line-height:1;flex-shrink:0}
+
+.modal-backdrop{position:fixed;inset:0;background:rgba(13,27,75,.55);display:none;align-items:center;justify-content:center;
+  padding:1.5rem;z-index:50}
+.modal-backdrop.show{display:flex}
+.modal{background:#fff;border-radius:20px;padding:2rem;max-width:400px;width:100%}
+.modal h3{font-family:var(--fd);font-weight:900;font-size:1.15rem;margin-bottom:1rem}
+.modal .actions{display:flex;gap:.7rem;margin-top:1rem;justify-content:flex-end}
+
+.skeleton{background:linear-gradient(90deg,#eee,#f6f6f6,#eee);background-size:200% 100%;animation:shimmer 1.4s infinite;
+  border-radius:14px;height:1rem;margin:.4rem 0}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+.hidden{display:none}
+footer{background:#081130;color:rgba(255,255,255,.7);padding:2rem 5vw;text-align:center;font-size:.85rem}
+@media(max-width:640px){.wallet-hero{justify-content:center;text-align:center}.actions-row{justify-content:center}}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="/">
+    <svg viewBox="0 0 60 60"><circle cx="22" cy="22" r="13" fill="#1E6FCC"/><circle cx="38" cy="22" r="13" fill="#FF0077"/><circle cx="30" cy="16" r="10" fill="#1E6FCC"/><circle cx="34" cy="14" r="8" fill="#FF0077"/><rect x="17" y="20" width="12" height="9" rx="3" fill="#0D1B4B"/><rect x="31" y="20" width="12" height="9" rx="3" fill="#0D1B4B"/><path d="M14 40 L46 40 L42 56 L18 56 Z" fill="#1E6FCC" stroke="#F5C200" stroke-width="2.5"/></svg>
+    DESENCAJADO
+  </a>
+  <span class="tag">Mi cuenta</span>
+</header>
+
+<main>
+
+<div id="loading" class="spinner"></div>
+
+<!-- ═══ ESTADO: NO AUTENTICADO ═══ -->
+<section id="view-login" class="card hidden">
+  <span class="kicker">// Wallet DESENCAJADO</span>
+  <h1>Entra a tu cuenta</h1>
+  <p class="lead">Inicia sesión con Google para ver tus estrellas acumuladas, tu historial de consumo, tu código de referido y tu grupo familiar.</p>
+  <div style="margin-top:1.6rem">
+    <a class="btn google" id="google-btn" href="/auth/google">
+      <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.1 8 3l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.9 1.1 8 3l5.7-5.7C34.6 6.1 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.5-2.1 14.2-5.6l-6.6-5.6C29.6 34.7 27 35.5 24 35.5c-5.2 0-9.6-3.3-11.3-8l-6.6 5.1C9.6 39.6 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.3-4.1 5.8l6.6 5.6C41.8 35.9 44 30.4 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
+      Continuar con Google
+    </a>
+  </div>
+</section>
+
+<!-- ═══ ESTADO: COMPLETAR PERFIL (primera vez) ═══ -->
+<section id="view-profile-complete" class="card hidden">
+  <span class="kicker">// Paso 1 de 2</span>
+  <h1>Completa tu perfil<span id="profile-name"></span></h1>
+  <p class="lead">Necesitamos tu DNI y celular para vincular tu wallet — así podemos avisarte de promociones y, más adelante, sorprenderte en tu cumpleaños.</p>
+  <div class="field">
+    <label for="profile-dni">DNI</label>
+    <input type="text" id="profile-dni" inputmode="numeric" maxlength="8" placeholder="12345678">
+  </div>
+  <div class="field">
+    <label for="profile-telefono">Celular</label>
+    <input type="text" id="profile-telefono" inputmode="numeric" maxlength="9" placeholder="987654321">
+  </div>
+  <button class="btn" id="profile-confirm-btn">Continuar</button>
+  <div class="msg" id="profile-msg"></div>
+</section>
+
+<!-- ═══ ESTADO: CAMPOS ADICIONALES (obligatorios, agregados por el admin) ═══ -->
+<section id="view-extra-fields" class="card hidden">
+  <span class="kicker">// Un dato más</span>
+  <h1>Nos falta un dato<span id="extra-fields-name"></span></h1>
+  <p class="lead">Antes de continuar, necesitamos que completes lo siguiente.</p>
+  <div id="extra-fields-form"></div>
+  <button class="btn" id="extra-fields-confirm-btn">Continuar</button>
+  <div class="msg" id="extra-fields-msg"></div>
+</section>
+
+<!-- ═══ ESTADO: CONFIGURAR 2FA (primera vez) ═══ -->
+<section id="view-2fa-setup" class="card hidden">
+  <span class="kicker">// Paso 2 de 2</span>
+  <h1>Activa la verificación en dos pasos</h1>
+  <p class="lead">Escanea este código QR con Google Authenticator, Authy o similar. Es obligatorio para proteger tus puntos.</p>
+  <div class="qr-box">
+    <div id="qr-canvas"></div>
+    <span class="secret" id="setup-secret"></span>
+  </div>
+  <div class="field">
+    <label for="setup-code">Ingresa el código de 6 dígitos que muestra tu app</label>
+    <div class="otp-row">
+      <input class="otp" type="text" id="setup-code" inputmode="numeric" maxlength="6" placeholder="000000">
+      <button class="btn" id="setup-confirm-btn">Confirmar y activar</button>
+    </div>
+  </div>
+  <div class="msg" id="setup-msg"></div>
+</section>
+
+<!-- ═══ ESTADO: VERIFICAR 2FA (login recurrente) ═══ -->
+<section id="view-2fa-verify" class="card hidden">
+  <span class="kicker">// Verificación en dos pasos</span>
+  <h1>Hola de nuevo<span id="verify-name"></span></h1>
+  <p class="lead">Ingresa el código de 6 dígitos de tu app autenticadora para entrar a tu wallet.</p>
+  <div class="otp-row">
+    <input class="otp" type="text" id="verify-code" inputmode="numeric" maxlength="6" placeholder="000000">
+    <button class="btn" id="verify-confirm-btn">Ingresar</button>
+  </div>
+  <div class="msg" id="verify-msg"></div>
+</section>
+
+<!-- ═══ ESTADO: WALLET ACTIVA ═══ -->
+<section id="view-wallet" class="hidden">
+
+  <div id="promo-banner"></div>
+
+  <div class="card wallet-hero">
+    <img class="avatar" id="wallet-avatar" alt="">
+    <div style="flex:1;min-width:180px">
+      <span class="kicker">// Bienvenido</span>
+      <h1 id="wallet-name" style="margin:.2rem 0"></h1>
+      <p class="lead" id="wallet-email" style="opacity:.6;font-size:.85rem"></p>
+    </div>
+    <div class="balance">
+      <b id="wallet-balance">0</b>
+      <span>ESTRELLAS</span>
+      <div id="tier-badge" class="tier-badge"></div>
+    </div>
+    <div class="actions-row">
+      <button class="btn small" id="redeem-btn">Canjear puntos</button>
+      <button class="btn ghost small" id="push-btn">🔔 Activar notificaciones</button>
+      <a class="btn wallet small hidden" id="gwallet-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 6h18v12H3z" stroke="#fff" stroke-width="1.5"/><path d="M3 10h18" stroke="#fff" stroke-width="1.5"/></svg>
+        Agregar a Google Wallet
+      </a>
+      <button class="btn ghost small" id="logout-btn">Cerrar sesión</button>
+      <button class="btn ghost small" id="logout-all-btn">Cerrar sesión en todos los dispositivos</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Tu progreso hacia la próxima recompensa</h2>
+    <p class="lead" id="reward-caption" style="font-size:.85rem"></p>
+    <div class="progress-track"><div class="progress-fill" id="reward-fill" style="width:0%"></div></div>
+    <div class="progress-caption"><span id="reward-current">0</span><span id="reward-target"></span></div>
+    <div class="reward-ready" id="reward-ready"></div>
+  </div>
+
+  <div class="card">
+    <h2>🎡 Ruleta de premios</h2>
+    <p class="lead" style="font-size:.85rem;margin-bottom:1rem">Gira una vez al día y gana estrellas extra al instante.</p>
+    <div style="display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap">
+      <button class="btn" id="spin-btn">Girar la ruleta 🎡</button>
+      <span id="spin-caption" class="empty" style="padding:0"></span>
+    </div>
+    <div class="msg" id="spin-msg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Historial de consumo</h2>
+    <table>
+      <thead><tr><th>Fecha</th><th>Producto</th><th>Monto</th><th>Estrellas</th></tr></thead>
+      <tbody id="purchases-body"></tbody>
+    </table>
+    <p class="empty hidden" id="purchases-empty">Aún no tienes compras registradas.</p>
+  </div>
+
+  <div class="card">
+    <h2>Canjear código de promoción</h2>
+    <p class="lead" style="margin-bottom:.8rem;font-size:.85rem">¿Tienes un código de una promoción (flyer, redes, etc.)? Ingrésalo aquí y muéstrale la confirmación al staff.</p>
+    <div class="otp-row">
+      <input type="text" id="promo-code-input" placeholder="CÓDIGO" style="width:180px;letter-spacing:.05em;font-size:1rem;text-transform:uppercase">
+      <button class="btn small" id="promo-code-btn">Canjear</button>
+    </div>
+    <div class="msg" id="promo-code-msg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Comparte y gana</h2>
+    <p class="lead" style="margin-bottom:.8rem">Comparte tu enlace: tus referidos quedan vinculados a tu cuenta.</p>
+    <div class="ref-box">
+      <span>Tu código:</span> <code id="ref-code"></code>
+      <button class="btn ghost small" id="copy-ref-btn">Copiar enlace</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Grupo familiar / compartido</h2>
+    <div id="family-current" class="hidden">
+      <p class="lead">Perteneces al grupo <b id="family-name"></b>. Código de invitación: <code id="family-invite"></code></p>
+      <ul id="family-members" style="margin-top:.8rem;padding-left:1.2rem"></ul>
+      <div class="actions-row" style="margin-top:1rem">
+        <button class="btn ghost small" id="family-leave-btn">Salir del grupo</button>
+      </div>
+    </div>
+    <div id="family-forms">
+      <div class="field">
+        <label for="family-name-input">Crear un grupo nuevo</label>
+        <div class="otp-row">
+          <input type="text" id="family-name-input" placeholder="Ej. Familia Ramos" style="width:220px;letter-spacing:normal;font-size:1rem">
+          <button class="btn ghost small" id="family-create-btn">Crear grupo</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="family-code-input">Unirme con un código de invitación</label>
+        <div class="otp-row">
+          <input type="text" id="family-code-input" placeholder="CÓDIGO" style="width:220px;letter-spacing:normal;font-size:1rem">
+          <button class="btn ghost small" id="family-join-btn">Unirme</button>
+        </div>
+      </div>
+    </div>
+    <div class="msg" id="family-msg"></div>
+  </div>
+
+  <div class="card hidden" id="extra-info-card">
+    <h2>Tu información</h2>
+    <p class="lead" style="margin-bottom:.8rem;font-size:.85rem">Puedes completar o actualizar estos datos cuando quieras.</p>
+    <div id="extra-info-form"></div>
+    <button class="btn small" id="extra-info-save-btn">Guardar</button>
+    <div class="msg" id="extra-info-msg"></div>
+  </div>
+</section>
+
+</main>
+
+<footer>☕ DESENCAJADO — Papas y Café · Wallet de fidelidad · © 2026</footer>
+
+<!-- ═══ POPUP: promoción activa ═══ -->
+<div class="modal-backdrop" id="promo-popup">
+  <div class="modal" style="max-width:420px;padding:0;overflow:hidden">
+    <img id="popup-photo" class="hidden" style="width:100%;height:180px;object-fit:cover;display:block">
+    <div style="padding:1.6rem">
+      <span class="kicker" style="color:var(--fuchsia)">📣 PROMOCIÓN</span>
+      <h3 id="popup-title" style="margin:.4rem 0"></h3>
+      <p id="popup-body" style="line-height:1.6"></p>
+      <p id="popup-vigencia" class="empty" style="font-size:.78rem;margin-top:.5rem"></p>
+      <div id="popup-chips" style="margin-top:.5rem"></div>
+      <div class="actions" style="justify-content:space-between;margin-top:1.4rem">
+        <button class="btn ghost small" id="popup-close-btn">Cerrar</button>
+        <button class="btn small" id="popup-redeem-btn">Canjear código</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: canjear puntos ═══ -->
+<div class="modal-backdrop" id="redeem-modal">
+  <div class="modal">
+    <h3>Canjear estrellas</h3>
+    <div class="field">
+      <label for="redeem-amount">Cantidad de estrellas</label>
+      <input type="number" id="redeem-amount" min="1" placeholder="10">
+    </div>
+    <div class="field">
+      <label for="redeem-motivo">¿Por qué producto? (opcional)</label>
+      <input type="text" id="redeem-motivo" placeholder="Ej. Frappé de Lúcuma">
+    </div>
+    <div class="msg" id="redeem-msg"></div>
+    <div class="actions">
+      <button class="btn ghost small" id="redeem-cancel-btn">Cancelar</button>
+      <button class="btn small" id="redeem-confirm-btn">Confirmar canje</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Cualquier dato que muestre otro cliente (nombre de un miembro de tu grupo
+// familiar, nombre de producto, etc.) pasa por acá antes de insertarse con
+// innerHTML, para que no pueda ejecutar código en tu navegador.
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+const views = ['login', 'profile-complete', 'extra-fields', '2fa-setup', '2fa-verify', 'wallet'];
+function showView(name){
+  document.getElementById('loading').classList.add('hidden');
+  views.forEach(v => document.getElementById(`view-${v}`).classList.toggle('hidden', v !== name));
+}
+
+async function api(path, options = {}){
+  const res = await fetch(path, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...(options.headers||{}) },
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
+function setMsg(id, kind, text){
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = `msg show ${kind}`;
+}
+
+let currentUser = null;
+
+async function init(){
+  const params = new URLSearchParams(location.search);
+  const ref = params.get('ref');
+  if (ref) {
+    document.getElementById('google-btn').href = `/auth/google?ref=${encodeURIComponent(ref)}`;
+  }
+
+  const { data } = await api('/api/me');
+
+  if (data.stage === 'needs_profile') {
+    document.getElementById('profile-name').textContent = data.name ? `, ${data.name.split(' ')[0]}` : '';
+    showView('profile-complete');
+    return;
+  }
+
+  if (data.stage === 'needs_extra_fields') {
+    document.getElementById('extra-fields-name').textContent = data.name ? `, ${data.name.split(' ')[0]}` : '';
+    renderExtraFieldsForm(data.fields);
+    showView('extra-fields');
+    return;
+  }
+
+  if (data.stage === 'needs_2fa_setup') {
+    showView('2fa-setup');
+    await startTotpSetup();
+    return;
+  }
+
+  if (data.stage === 'pending_2fa') {
+    document.getElementById('verify-name').textContent = `, ${data.name.split(' ')[0]}`;
+    showView('2fa-verify');
+    return;
+  }
+
+  if (data.authenticated) {
+    currentUser = data.user;
+    renderWallet(data.user);
+    showView('wallet');
+  } else {
+    showView('login');
+  }
+}
+
+document.getElementById('profile-confirm-btn').addEventListener('click', async () => {
+  const dni = document.getElementById('profile-dni').value.trim();
+  const telefono = document.getElementById('profile-telefono').value.trim();
+  const { ok, data } = await api('/api/profile/complete', { method: 'POST', body: JSON.stringify({ dni, telefono }) });
+  if (!ok) {
+    const firstError = data.errors ? Object.values(data.errors)[0] : null;
+    setMsg('profile-msg', 'error', firstError || data.error || 'No se pudo guardar tu perfil.');
+    return;
+  }
+  document.getElementById('loading').classList.remove('hidden');
+  views.forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
+  await init();
+});
+
+function inputTypeFor(fieldType){
+  if (fieldType === 'date') return 'date';
+  if (fieldType === 'number') return 'number';
+  return 'text';
+}
+
+function renderExtraFieldsForm(fields){
+  const container = document.getElementById('extra-fields-form');
+  container.innerHTML = '';
+  fields.forEach(f => {
+    const div = document.createElement('div');
+    div.className = 'field';
+    div.innerHTML = `<label for="extra-field-${f.id}">${escapeHtml(f.label)}${f.required ? ' *' : ''}</label>
+      <input type="${escapeHtml(inputTypeFor(f.field_type))}" id="extra-field-${f.id}" data-field-id="${f.id}">`;
+    container.appendChild(div);
+  });
+}
+
+document.getElementById('extra-fields-confirm-btn').addEventListener('click', async () => {
+  const inputs = document.querySelectorAll('#extra-fields-form input[data-field-id]');
+  const values = {};
+  inputs.forEach(input => { if (input.value.trim()) values[input.dataset.fieldId] = input.value.trim(); });
+  const { ok, data } = await api('/api/profile/fields', { method: 'POST', body: JSON.stringify({ values }) });
+  if (!ok) { setMsg('extra-fields-msg', 'error', data.error || 'No se pudo guardar.'); return; }
+  document.getElementById('loading').classList.remove('hidden');
+  views.forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
+  await init();
+});
+
+async function startTotpSetup(){
+  const { ok, data } = await api('/api/2fa/setup', { method: 'POST' });
+  if (!ok) { setMsg('setup-msg', 'error', data.error || 'No se pudo generar el QR.'); return; }
+  document.getElementById('setup-secret').textContent = data.secret;
+  document.getElementById('qr-canvas').innerHTML = '';
+  new QRCode(document.getElementById('qr-canvas'), { text: data.otpauthUrl, width: 200, height: 200 });
+}
+
+document.getElementById('setup-confirm-btn').addEventListener('click', async () => {
+  const code = document.getElementById('setup-code').value.trim();
+  const { ok, data } = await api('/api/2fa/verify', { method: 'POST', body: JSON.stringify({ code }) });
+  if (!ok) { setMsg('setup-msg', 'error', data.error || 'Código incorrecto.'); return; }
+  currentUser = data.user;
+  renderWallet(data.user);
+  showView('wallet');
+});
+
+document.getElementById('verify-confirm-btn').addEventListener('click', async () => {
+  const code = document.getElementById('verify-code').value.trim();
+  const { ok, data } = await api('/api/2fa/verify', { method: 'POST', body: JSON.stringify({ code }) });
+  if (!ok) { setMsg('verify-msg', 'error', data.error || 'Código incorrecto.'); return; }
+  currentUser = data.user;
+  renderWallet(data.user);
+  showView('wallet');
+});
+
+document.getElementById('logout-btn').addEventListener('click', async () => {
+  await api('/api/logout', { method: 'POST' });
+  location.reload();
+});
+
+document.getElementById('logout-all-btn').addEventListener('click', async () => {
+  if (!confirm('¿Cerrar sesión en todos tus dispositivos? Vas a tener que volver a iniciar sesión en todos, incluido este.')) return;
+  await api('/api/logout-all', { method: 'POST' });
+  location.reload();
+});
+
+// ═══ Wallet principal ═══
+
+function renderWallet(user){
+  document.getElementById('wallet-name').textContent = user.name;
+  document.getElementById('wallet-email').textContent = user.email;
+  document.getElementById('wallet-avatar').src = user.avatarUrl ||
+    'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="%230D1B4B"/></svg>');
+  document.getElementById('wallet-balance').textContent = user.puntos;
+  document.getElementById('ref-code').textContent = user.referralCode;
+
+  renderReward(user.reward);
+  renderTier(user.tier);
+  renderSpin(user.spinStatus);
+  renderExtraInfoCard(user.profileFields);
+
+  document.getElementById('copy-ref-btn').onclick = () => {
+    const link = `${location.origin}/cuenta.html?ref=${user.referralCode}`;
+    navigator.clipboard.writeText(link).then(() => {
+      document.getElementById('copy-ref-btn').textContent = '¡Copiado!';
+      setTimeout(() => { document.getElementById('copy-ref-btn').textContent = 'Copiar enlace'; }, 1800);
+    });
+  };
+
+  if (user.familyGroup) {
+    document.getElementById('family-current').classList.remove('hidden');
+    document.getElementById('family-forms').classList.add('hidden');
+    document.getElementById('family-name').textContent = user.familyGroup.name;
+    document.getElementById('family-invite').textContent = user.familyGroup.invite_code;
+    const isOwner = user.familyGroup.owner_user_id === user.id;
+    const list = document.getElementById('family-members');
+    list.innerHTML = '';
+    user.familyGroup.members.forEach(m => {
+      const li = document.createElement('li');
+      li.textContent = `${m.name} (${m.email})`;
+      if (isOwner && m.id !== user.id) {
+        const btn = document.createElement('button');
+        btn.className = 'btn ghost small';
+        btn.style.marginLeft = '.6rem';
+        btn.style.padding = '.2rem .6rem';
+        btn.style.fontSize = '.72rem';
+        btn.textContent = 'Expulsar';
+        btn.onclick = async () => {
+          const { ok, data } = await api('/api/family/remove-member', { method: 'POST', body: JSON.stringify({ userId: m.id }) });
+          if (!ok) { alert(data.error || 'No se pudo expulsar.'); return; }
+          await refreshUser();
+        };
+        li.appendChild(btn);
+      }
+      list.appendChild(li);
+    });
+  }
+
+  const gwalletBtn = document.getElementById('gwallet-btn');
+  if (user.googleWalletConfigured) {
+    gwalletBtn.classList.remove('hidden');
+    gwalletBtn.onclick = async (e) => {
+      e.preventDefault();
+      const { ok, data } = await api('/api/wallet/google-pass');
+      if (ok && data.saveUrl) window.open(data.saveUrl, '_blank');
+    };
+  }
+
+  setupPushButton(user);
+  loadPurchases();
+  loadPromotions();
+}
+
+function renderReward(reward){
+  document.getElementById('reward-fill').style.width = `${reward.progressPct}%`;
+  document.getElementById('reward-current').textContent = `${reward.inCycle} ⭐`;
+  document.getElementById('reward-target').textContent = `${reward.threshold} ⭐ = 1 recompensa`;
+  document.getElementById('reward-caption').textContent =
+    `Te faltan ${reward.remaining} estrellas para tu próxima recompensa.`;
+  const ready = document.getElementById('reward-ready');
+  if (reward.rewardsAvailable > 0) {
+    ready.classList.add('show');
+    ready.textContent = `🎁 ¡Tienes ${reward.rewardsAvailable} recompensa(s) lista(s) para canjear!`;
+  } else {
+    ready.classList.remove('show');
+  }
+}
+
+const TIER_LABELS = { bronce: '🥉 Bronce', plata: '🥈 Plata', oro: '🥇 Oro' };
+
+function renderTier(tier){
+  const badge = document.getElementById('tier-badge');
+  badge.className = `tier-badge ${tier.tier}`;
+  badge.textContent = TIER_LABELS[tier.tier] || tier.tier;
+  badge.title = tier.nextTier
+    ? `Te faltan ${tier.pointsToNext} estrellas ganadas para nivel ${TIER_LABELS[tier.nextTier]}`
+    : '¡Nivel máximo!';
+}
+
+// ═══ Ruleta de premios ═══
+
+let spinCooldownTimer = null;
+
+function renderSpin(status){
+  const btn = document.getElementById('spin-btn');
+  const caption = document.getElementById('spin-caption');
+  if (spinCooldownTimer) clearInterval(spinCooldownTimer);
+
+  function tick(){
+    const remainingMs = status.nextSpinAt ? new Date(status.nextSpinAt).getTime() - Date.now() : 0;
+    if (status.available || remainingMs <= 0) {
+      btn.disabled = false;
+      caption.textContent = '¡Disponible ahora!';
+      if (spinCooldownTimer) clearInterval(spinCooldownTimer);
+      return;
+    }
+    btn.disabled = true;
+    const mins = Math.floor(remainingMs / 60000);
+    caption.textContent = `Vuelve a girar en ${Math.floor(mins / 60)}h ${mins % 60}m`;
+  }
+
+  tick();
+  if (!status.available) spinCooldownTimer = setInterval(tick, 30_000);
+}
+
+document.getElementById('spin-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('spin-btn');
+  btn.disabled = true;
+  btn.classList.add('spinning');
+  const { ok, data } = await api('/api/wallet/spin', { method: 'POST' });
+  setTimeout(() => btn.classList.remove('spinning'), 700);
+
+  if (!ok) {
+    setMsg('spin-msg', 'error', data.error || 'No se pudo girar la ruleta.');
+    if (data.nextSpinAt !== undefined) renderSpin(data);
+    return;
+  }
+
+  setMsg('spin-msg', 'ok', data.prize.points > 0
+    ? `🎉 ¡Ganaste ${data.prize.points} estrellas!`
+    : `Esta vez no hubo suerte: "${data.prize.label}". ¡Vuelve mañana!`);
+  document.getElementById('wallet-balance').textContent = data.balance;
+  renderSpin(data.spinStatus);
+});
+
+async function loadPurchases(){
+  const { ok, data } = await api('/api/purchases?limit=20');
+  const body = document.getElementById('purchases-body');
+  body.innerHTML = '';
+  if (!ok || !data.items || data.items.length === 0) {
+    document.getElementById('purchases-empty').classList.remove('hidden');
+    return;
+  }
+  document.getElementById('purchases-empty').classList.add('hidden');
+  data.items.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escapeHtml(p.created_at)}</td><td>${escapeHtml(p.producto) || '—'}</td><td>S/ ${p.monto.toFixed(2)}</td><td>+${p.puntos}</td>`;
+    body.appendChild(tr);
+  });
+}
+
+async function refreshUser(){
+  const { data } = await api('/api/me');
+  if (data.authenticated) {
+    currentUser = data.user;
+    renderWallet(data.user);
+  }
+}
+
+// ═══ Información adicional (campos configurados por el admin) ═══
+
+function renderExtraInfoCard(fields){
+  const card = document.getElementById('extra-info-card');
+  if (!fields || fields.length === 0) { card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+
+  const container = document.getElementById('extra-info-form');
+  container.innerHTML = '';
+  fields.forEach(f => {
+    const div = document.createElement('div');
+    div.className = 'field';
+    div.innerHTML = `<label for="extra-info-${f.id}">${escapeHtml(f.label)}${f.required ? ' *' : ''}</label>
+      <input type="${escapeHtml(inputTypeFor(f.field_type))}" id="extra-info-${f.id}" data-field-id="${f.id}" value="${escapeHtml(f.value)}">`;
+    container.appendChild(div);
+  });
+}
+
+document.getElementById('extra-info-save-btn').addEventListener('click', async () => {
+  const inputs = document.querySelectorAll('#extra-info-form input[data-field-id]');
+  const values = {};
+  inputs.forEach(input => { if (input.value.trim()) values[input.dataset.fieldId] = input.value.trim(); });
+  const { ok, data } = await api('/api/profile/fields', { method: 'POST', body: JSON.stringify({ values }) });
+  if (!ok) { setMsg('extra-info-msg', 'error', data.error || 'No se pudo guardar.'); return; }
+  setMsg('extra-info-msg', 'ok', 'Guardado.');
+  renderExtraInfoCard(data.items);
+});
+
+// ═══ Promociones ═══
+
+function formatVigencia(promo){
+  if (!promo.starts_at && !promo.ends_at) return '';
+  if (promo.ends_at && !promo.starts_at) return `Válido hasta ${promo.ends_at}`;
+  if (promo.starts_at && !promo.ends_at) return `Válido desde ${promo.starts_at}`;
+  return `Válido del ${promo.starts_at} al ${promo.ends_at}`;
+}
+
+function formatCountdown(endsAt){
+  if (!endsAt) return '';
+  const end = new Date(endsAt);
+  if (Number.isNaN(end.getTime())) return '';
+  const diffMs = end.getTime() - Date.now();
+  if (diffMs <= 0) return '';
+  const mins = Math.floor(diffMs / 60000);
+  const days = Math.floor(mins / 1440);
+  const hours = Math.floor((mins % 1440) / 60);
+  if (days > 0) return `⏳ Termina en ${days}d ${hours}h`;
+  if (hours > 0) return `⏳ Termina en ${hours}h ${mins % 60}m`;
+  return `⏳ Termina en ${mins % 60}m`;
+}
+
+function updateCountdowns(){
+  document.querySelectorAll('.countdown[data-ends]').forEach(el => {
+    el.textContent = formatCountdown(el.dataset.ends);
+  });
+}
+setInterval(updateCountdowns, 60_000);
+
+function seenPromoCodes(){
+  try { return JSON.parse(localStorage.getItem('desencajado_seen_promos') || '[]'); } catch { return []; }
+}
+
+function markPromoSeen(code){
+  try {
+    const seen = seenPromoCodes();
+    if (!seen.includes(code)) localStorage.setItem('desencajado_seen_promos', JSON.stringify([...seen, code]));
+  } catch { /* localStorage no disponible (modo privado, etc.) */ }
+}
+
+function showPromoPopup(promo){
+  const photoEl = document.getElementById('popup-photo');
+  if (promo.photo_url) { photoEl.src = promo.photo_url; photoEl.classList.remove('hidden'); }
+  else photoEl.classList.add('hidden');
+  document.getElementById('popup-title').textContent = promo.title;
+  document.getElementById('popup-body').textContent = promo.body;
+  document.getElementById('popup-vigencia').textContent = [formatVigencia(promo), formatCountdown(promo.ends_at)].filter(Boolean).join(' · ');
+  document.getElementById('popup-chips').innerHTML = (promo.products || []).map(p => `<span class="chip">${escapeHtml(p.name)}</span>`).join('');
+  document.getElementById('promo-popup').classList.add('show');
+  markPromoSeen(promo.publication_code);
+}
+
+async function loadPromotions(){
+  const { ok, data } = await api('/api/promotions');
+  const el = document.getElementById('promo-banner');
+  el.innerHTML = '';
+  if (!ok || !data.items) return;
+
+  data.items.forEach(promo => {
+    const div = document.createElement('div');
+    div.className = 'promo';
+    const photo = promo.photo_url ? `<img class="promo-photo" src="${escapeHtml(promo.photo_url)}" alt="">` : '';
+    const vigencia = formatVigencia(promo);
+    const chips = (promo.products || []).map(p => `<span class="chip">${escapeHtml(p.name)}</span>`).join('');
+    div.innerHTML = `${photo}<div class="promo-body">
+        <b>📣 ${escapeHtml(promo.title)}</b>
+        <p>${escapeHtml(promo.body)}</p>
+        ${vigencia ? `<p class="vigencia">${escapeHtml(vigencia)}</p>` : ''}
+        ${promo.ends_at ? `<p class="vigencia countdown" data-ends="${escapeHtml(promo.ends_at)}"></p>` : ''}
+        <div>${chips}</div>
+      </div><button class="promo-close" aria-label="Cerrar">✕</button>`;
+    div.querySelector('.promo-close').onclick = () => div.remove();
+    el.appendChild(div);
+  });
+  updateCountdowns();
+
+  // Popup: solo la más reciente, y solo si no se le mostró ya en este navegador.
+  const seen = seenPromoCodes();
+  const unseen = data.items.find(p => !seen.includes(p.publication_code));
+  if (unseen) showPromoPopup(unseen);
+}
+
+document.getElementById('popup-close-btn').addEventListener('click', () => {
+  document.getElementById('promo-popup').classList.remove('show');
+});
+document.getElementById('popup-redeem-btn').addEventListener('click', () => {
+  document.getElementById('promo-popup').classList.remove('show');
+  document.getElementById('promo-code-input').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  document.getElementById('promo-code-input').focus();
+});
+
+// ═══ Canje de código de promoción ═══
+
+document.getElementById('promo-code-btn').addEventListener('click', async () => {
+  const code = document.getElementById('promo-code-input').value.trim();
+  if (!code) return;
+  const { ok, data } = await api('/api/promotions/redeem', { method: 'POST', body: JSON.stringify({ code }) });
+  if (!ok) { setMsg('promo-code-msg', 'error', data.error || 'No se pudo canjear.'); return; }
+  const extra = data.code && data.code.usesRemaining != null ? ` (quedan ${data.code.usesRemaining} usos de este código)` : '';
+  setMsg('promo-code-msg', 'ok', `✅ ¡Código válido! ${data.promotion.title}: ${data.promotion.body}${extra}. Muéstrale esto al staff.`);
+  document.getElementById('promo-code-input').value = '';
+});
+
+// ═══ Notificaciones push ═══
+
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+async function setupPushButton(user){
+  const btn = document.getElementById('push-btn');
+  if (!user.pushConfigured || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    btn.classList.add('hidden');
+    return;
+  }
+
+  const registration = await navigator.serviceWorker.register('/sw.js').catch(() => null);
+  const existing = registration ? await registration.pushManager.getSubscription() : null;
+
+  if (existing) {
+    btn.textContent = '🔕 Desactivar notificaciones';
+    btn.onclick = async () => {
+      await api('/api/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint: existing.endpoint }) });
+      await existing.unsubscribe();
+      setupPushButton(user);
+    };
+    return;
+  }
+
+  btn.textContent = '🔔 Activar notificaciones';
+  btn.onclick = async () => {
+    btn.disabled = true;
+    try {
+      const { data } = await api('/api/push/vapid-public-key');
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(data.publicKey),
+      });
+      await api('/api/push/subscribe', { method: 'POST', body: JSON.stringify(sub.toJSON()) });
+      await setupPushButton(user);
+    } catch {
+      alert('No pudimos activar las notificaciones. Revisa los permisos del navegador.');
+    } finally {
+      btn.disabled = false;
+    }
+  };
+}
+
+// ═══ Canje de puntos ═══
+
+const redeemModal = document.getElementById('redeem-modal');
+document.getElementById('redeem-btn').addEventListener('click', () => {
+  document.getElementById('redeem-amount').value = '';
+  document.getElementById('redeem-motivo').value = '';
+  document.getElementById('redeem-msg').className = 'msg';
+  redeemModal.classList.add('show');
+});
+document.getElementById('redeem-cancel-btn').addEventListener('click', () => redeemModal.classList.remove('show'));
+document.getElementById('redeem-confirm-btn').addEventListener('click', async () => {
+  const puntos = Number(document.getElementById('redeem-amount').value);
+  const motivo = document.getElementById('redeem-motivo').value.trim();
+  const { ok, data } = await api('/api/points/redeem', { method: 'POST', body: JSON.stringify({ puntos, motivo }) });
+  if (!ok) { setMsg('redeem-msg', 'error', data.error || 'No se pudo canjear.'); return; }
+  redeemModal.classList.remove('show');
+  await refreshUser();
+});
+
+// ═══ Grupo familiar ═══
+
+document.getElementById('family-leave-btn').addEventListener('click', async () => {
+  if (!confirm('¿Salir del grupo familiar? Si sos el dueño, el grupo se disuelve para todos los miembros.')) return;
+  const { ok, data } = await api('/api/family/leave', { method: 'POST' });
+  if (!ok) { alert(data.error || 'No se pudo salir del grupo.'); return; }
+  location.reload();
+});
+
+document.getElementById('family-create-btn').addEventListener('click', async () => {
+  const name = document.getElementById('family-name-input').value.trim();
+  if (!name) return;
+  const { ok, data } = await api('/api/family/create', { method: 'POST', body: JSON.stringify({ name }) });
+  if (!ok) { setMsg('family-msg', 'error', data.error || 'No se pudo crear el grupo.'); return; }
+  location.reload();
+});
+
+document.getElementById('family-join-btn').addEventListener('click', async () => {
+  const inviteCode = document.getElementById('family-code-input').value.trim();
+  if (!inviteCode) return;
+  const { ok, data } = await api('/api/family/join', { method: 'POST', body: JSON.stringify({ inviteCode }) });
+  if (!ok) { setMsg('family-msg', 'error', data.error || 'Código no encontrado.'); return; }
+  location.reload();
+});
+
+init();
+</script>
+</body>
+</html>

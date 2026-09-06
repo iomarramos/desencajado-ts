@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      # Fijo a 3000 a propósito: tiene que coincidir con el EXPOSE del
+      # Dockerfile y el mapeo de puertos de arriba. Para usar otro puerto
+      # en el host, cambiá el "3000:3000" de arriba (ej. "8080:3000").
+      - PORT=3000
+    volumes:
+      - desencajado_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  desencajado_data:

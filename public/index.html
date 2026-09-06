@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DESENCAJADO — Regístrate para la apertura</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700;800;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --yellow:#F5C200; --navy:#0D1B4B; --blue:#1E6FCC; --fuchsia:#FF0077; --bone:#F8F4EB;
+  --grad:linear-gradient(90deg,var(--fuchsia),var(--blue));
+  --fd:'Poppins',system-ui,sans-serif; --fb:'Inter',system-ui,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--fb);background:var(--bone);color:var(--navy)}
+::selection{background:var(--fuchsia);color:#fff}
+
+header{display:flex;justify-content:space-between;align-items:center;padding:1.2rem 5vw;background:var(--navy)}
+.logo{display:flex;align-items:center;gap:.6rem;text-decoration:none;font-family:var(--fd);font-weight:900;
+  font-size:1.1rem;color:#fff}
+.logo svg{width:36px;height:36px}
+.badge{display:inline-flex;align-items:center;gap:.6rem;background:var(--navy);color:var(--yellow);
+  padding:.5rem 1.1rem;border-radius:999px;font-weight:700;font-size:.75rem;letter-spacing:.14em;margin-bottom:1.2rem}
+.badge i{width:8px;height:8px;border-radius:50%;background:var(--fuchsia);box-shadow:0 0 10px var(--fuchsia);animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.3}}
+
+.hero{display:grid;place-items:center;text-align:center;padding:4rem 5vw 3rem;background:var(--yellow);
+  background-image:repeating-linear-gradient(-45deg,rgba(13,27,75,.045) 0 2px,transparent 2px 26px)}
+h1{font-family:var(--fd);font-weight:900;font-size:clamp(2.2rem,5.6vw,3.6rem);line-height:1.08;letter-spacing:-.01em;max-width:16ch}
+h1 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{margin:1.1rem auto 0;font-size:clamp(1rem,2vw,1.2rem);font-weight:600;max-width:52ch}
+.sub b{background:var(--fuchsia);color:#fff;padding:.1em .45em;border-radius:8px;display:inline-block}
+.loc{margin-top:1rem;font-weight:600;font-size:.9rem;opacity:.8}
+
+.cd{display:flex;gap:.8rem;justify-content:center;margin-top:1.8rem;flex-wrap:wrap}
+.cd div{background:var(--navy);color:#fff;border-radius:14px;padding:.7rem .9rem;min-width:72px;text-align:center;
+  border-bottom:4px solid var(--fuchsia)}
+.cd b{display:block;font-family:var(--fd);font-size:1.5rem;font-weight:900;color:var(--yellow)}
+.cd span{font-size:.62rem;letter-spacing:.18em;font-weight:700}
+
+.counter{display:inline-flex;align-items:center;gap:.5rem;margin-top:1.6rem;background:var(--navy);color:var(--yellow);
+  padding:.6rem 1.2rem;border-radius:999px;font-weight:700;font-size:.85rem}
+
+/* ═══ REGISTRO ═══ */
+.reg{max-width:1100px;margin:0 auto;padding:4.5rem 5vw;display:grid;grid-template-columns:.85fr 1.15fr;gap:3rem;align-items:start}
+.kicker{font-size:.72rem;font-weight:800;letter-spacing:.28em;color:var(--fuchsia);text-transform:uppercase}
+h2{font-family:var(--fd);font-weight:900;font-size:clamp(1.6rem,3.4vw,2.3rem);margin:.5rem 0 1rem;letter-spacing:-.01em}
+h2::after{content:'';display:block;width:70px;height:5px;background:var(--grad);border-radius:4px;margin-top:.7rem}
+.reg p.pitch{line-height:1.7;max-width:56ch;color:var(--navy);opacity:.85}
+
+.ticket{width:230px;margin:0 auto;background:var(--yellow);border-radius:18px;padding:1.6rem 1.2rem 0;position:relative;
+  transform:rotate(-4deg);box-shadow:0 24px 50px -20px rgba(13,27,75,.5);transition:.4s;text-align:center}
+.ticket:hover{transform:rotate(0) scale(1.04)}
+.ticket::before{content:'';position:absolute;top:14px;left:50%;transform:translateX(-50%);width:26px;height:26px;
+  background:var(--navy);border-radius:50%}
+.ticket h3{font-family:var(--fd);font-weight:900;font-size:1.1rem;margin:1.2rem 0 .3rem}
+.ticket p{font-size:.8rem;font-weight:600}
+.ticket .cupon{margin:1.2rem -1.2rem 0;background:var(--fuchsia);color:#fff;padding:1rem;border-top:3px dashed var(--navy);border-radius:0 0 18px 18px}
+.ticket .cupon b{font-family:var(--fd);font-size:1.4rem;font-weight:900;display:block}
+.ticket .cupon small{font-size:.65rem;letter-spacing:.1em}
+
+form{display:grid;gap:1rem;margin-top:1.8rem}
+.field{display:grid;gap:.35rem}
+label{font-weight:700;font-size:.85rem}
+input{padding:1rem 1.3rem;border-radius:14px;border:2px solid rgba(13,27,75,.2);background:#fff;font-family:var(--fb);font-size:1rem;transition:.3s}
+input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 4px rgba(30,111,204,.18)}
+input.invalid{border-color:var(--fuchsia)}
+.err{color:var(--fuchsia);font-size:.78rem;font-weight:600;min-height:1.1em}
+.hint{font-size:.76rem;opacity:.6}
+.radios{display:flex;gap:1.5rem;font-weight:600;flex-wrap:wrap;align-items:center}
+.radios label{display:flex;gap:.5rem;align-items:center;cursor:pointer;font-weight:600}
+.radios input{width:auto;accent-color:var(--fuchsia);padding:0}
+.btn{display:inline-block;padding:1rem 1.8rem;border-radius:999px;font-family:var(--fd);font-weight:700;
+  font-size:.95rem;text-decoration:none;border:none;cursor:pointer;transition:.3s;background:var(--grad);color:#fff;
+  box-shadow:0 10px 26px -10px rgba(255,0,119,.55)}
+.btn:hover{transform:translateY(-3px) scale(1.02)}
+.btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+
+.msg{display:none;margin-top:1.2rem;border-radius:16px;padding:1.1rem 1.4rem;font-weight:600;line-height:1.6}
+.msg.show{display:block}
+.msg.ok{background:var(--navy);color:#fff;border-left:6px solid var(--yellow)}
+.msg.error{background:#fff0f6;color:var(--fuchsia);border-left:6px solid var(--fuchsia)}
+
+@media(max-width:900px){.reg{grid-template-columns:1fr}}
+
+footer{background:#081130;color:rgba(255,255,255,.7);padding:2rem 5vw;text-align:center;font-size:.85rem}
+
+/* ═══ POPUP de promoción ═══ */
+.modal-backdrop{position:fixed;inset:0;background:rgba(13,27,75,.6);display:none;align-items:center;justify-content:center;
+  padding:1.5rem;z-index:50}
+.modal-backdrop.show{display:flex}
+.modal-promo{background:#fff;border-radius:20px;max-width:420px;width:100%;overflow:hidden;box-shadow:0 30px 70px -20px rgba(13,27,75,.6)}
+.modal-promo img{width:100%;height:180px;object-fit:cover;display:block}
+.modal-promo .inner{padding:1.6rem}
+.modal-promo h3{font-family:var(--fd);font-weight:900;font-size:1.3rem;margin:.4rem 0}
+.modal-promo p{line-height:1.6}
+.modal-promo .vigencia{font-size:.78rem;opacity:.65;margin-top:.5rem}
+.chip{display:inline-block;padding:.15rem .6rem;border-radius:999px;background:var(--bone);font-size:.72rem;font-weight:700;margin:.3rem .3rem 0 0}
+.modal-promo .actions{display:flex;justify-content:flex-end;gap:.7rem;margin-top:1.4rem}
+.btn.ghost{background:none;color:var(--navy);border:2px solid rgba(13,27,75,.2);box-shadow:none}
+.btn.small{padding:.6rem 1.2rem;font-size:.85rem}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="/">
+    <svg viewBox="0 0 60 60"><circle cx="22" cy="22" r="13" fill="#1E6FCC"/><circle cx="38" cy="22" r="13" fill="#FF0077"/><circle cx="30" cy="16" r="10" fill="#1E6FCC"/><circle cx="34" cy="14" r="8" fill="#FF0077"/><rect x="17" y="20" width="12" height="9" rx="3" fill="#0D1B4B"/><rect x="31" y="20" width="12" height="9" rx="3" fill="#0D1B4B"/><path d="M14 40 L46 40 L42 56 L18 56 Z" fill="#1E6FCC" stroke="#F5C200" stroke-width="2.5"/></svg>
+    DESENCAJADO
+  </a>
+  <a href="/cuenta.html" style="color:#fff;font-weight:700;font-size:.85rem;text-decoration:none;opacity:.85">Ya soy cliente → Mi cuenta</a>
+</header>
+
+<section class="hero">
+  <span class="badge"><i></i> APERTURA OFICIAL · 29 OCT 2026 · HUARAZ</span>
+  <h1>Sé de los primeros en <span class="grad">pensar fuera de la caja.</span></h1>
+  <p class="sub">Regístrate para la apertura y asegura tu <b>Frappé de Lúcuma gratis</b>.</p>
+  <p class="loc">📍 Av. Centenario, Huaraz — frente a la UNASAM</p>
+  <div class="cd" aria-label="Cuenta regresiva a la apertura">
+    <div><b id="cd-d">--</b><span>DÍAS</span></div>
+    <div><b id="cd-h">--</b><span>HORAS</span></div>
+    <div><b id="cd-m">--</b><span>MIN</span></div>
+    <div><b id="cd-s">--</b><span>SEG</span></div>
+  </div>
+  <div class="counter">🧠 <span id="counter-text">Cargando personas registradas…</span></div>
+</section>
+
+<section class="reg">
+  <div>
+    <div class="ticket" aria-hidden="true">
+      <h3>DESENCAJADO</h3>
+      <p>PAPAS Y CAFÉ<br>"Mentes diferentes,<br>ideas extraordinarias."</p>
+      <div class="cupon"><b>FRAPPÉ GRATIS</b><small>PARA LOS PRIMEROS INSCRITOS</small></div>
+    </div>
+  </div>
+  <div>
+    <span class="kicker">// Pre-apertura</span>
+    <h2>REGÍSTRATE PARA LA APERTURA</h2>
+    <p class="pitch">Déjanos tus datos y te avisamos primero — antes que nadie — cuándo abrimos y qué promo de lanzamiento tenemos preparada.</p>
+
+    <form id="form" novalidate>
+      <div class="field">
+        <label for="f-nombre">Nombre completo</label>
+        <input type="text" id="f-nombre" name="nombre" autocomplete="name" required minlength="2" maxlength="100">
+        <span class="err" id="err-nombre"></span>
+      </div>
+      <div class="field">
+        <label for="f-telefono">Teléfono (celular)</label>
+        <input type="tel" id="f-telefono" name="telefono" autocomplete="tel" placeholder="9XXXXXXXX" required inputmode="numeric">
+        <span class="hint">Celular peruano de 9 dígitos, empieza con 9.</span>
+        <span class="err" id="err-telefono"></span>
+      </div>
+      <div class="field">
+        <label for="f-dni">DNI</label>
+        <input type="text" id="f-dni" name="dni" placeholder="12345678" required inputmode="numeric" maxlength="8">
+        <span class="hint">8 dígitos, sin puntos ni espacios.</span>
+        <span class="err" id="err-dni"></span>
+      </div>
+      <div class="field">
+        <div class="radios">
+          <span style="font-weight:700">¿Eres estudiante UNASAM?</span>
+          <label><input type="radio" name="unasam" value="Sí" checked> Sí</label>
+          <label><input type="radio" name="unasam" value="No"> No</label>
+        </div>
+      </div>
+      <button class="btn" type="submit" id="submit-btn">Quiero mi lugar 🧠</button>
+    </form>
+    <div class="msg" id="msg"></div>
+  </div>
+</section>
+
+<footer>
+  ☕ DESENCAJADO — Papas y Café · Pensando fuera de la caja · Apertura 29 oct 2026 · © 2026
+</footer>
+
+<!-- ═══ POPUP: promoción activa ═══ -->
+<div class="modal-backdrop" id="promo-popup">
+  <div class="modal-promo">
+    <img id="popup-photo" style="display:none">
+    <div class="inner">
+      <span class="kicker">📣 Promoción</span>
+      <h3 id="popup-title"></h3>
+      <p id="popup-body"></p>
+      <p class="vigencia" id="popup-vigencia"></p>
+      <div id="popup-chips"></div>
+      <div class="actions">
+        <button class="btn ghost small" id="popup-close-btn">Cerrar</button>
+        <a class="btn small" href="/cuenta.html" id="popup-cta-btn">Canjear en mi cuenta</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+/* ═══ COUNTDOWN a apertura (29 oct 2026, 9:00 AM Perú) ═══ */
+const target=new Date('2026-10-29T09:00:00-05:00').getTime();
+const pad=n=>String(n).padStart(2,'0');
+function tick(){
+  let d=target-Date.now(); if(d<0)d=0;
+  document.getElementById('cd-d').textContent=pad(Math.floor(d/864e5));
+  document.getElementById('cd-h').textContent=pad(Math.floor(d/36e5)%24);
+  document.getElementById('cd-m').textContent=pad(Math.floor(d/6e4)%60);
+  document.getElementById('cd-s').textContent=pad(Math.floor(d/1e3)%60);
+}
+tick(); setInterval(tick,1000);
+
+/* ═══ CONTADOR de suscriptores ═══ */
+async function loadCount(){
+  try{
+    const r = await fetch('/api/subscribe/count');
+    const data = await r.json();
+    document.getElementById('counter-text').textContent =
+      `${data.total} persona${data.total===1?'':'s'} ya están en la lista`;
+  }catch{
+    document.getElementById('counter-text').textContent = 'Sé el primero en registrarte';
+  }
+}
+loadCount();
+
+/* ═══ VALIDACIÓN + ENVÍO del formulario ═══ */
+const form = document.getElementById('form');
+const msg = document.getElementById('msg');
+const submitBtn = document.getElementById('submit-btn');
+
+function setError(field, text){
+  document.getElementById(`err-${field}`).textContent = text || '';
+  document.getElementById(`f-${field}`).classList.toggle('invalid', Boolean(text));
+}
+
+function showMsg(kind, text){
+  msg.textContent = text;
+  msg.className = `msg show ${kind}`;
+}
+
+function validate(nombre, telefono, dni){
+  let ok = true;
+  if(nombre.length < 2 || nombre.length > 100){
+    setError('nombre', 'Ingresa tu nombre completo.'); ok = false;
+  } else setError('nombre', '');
+
+  if(!/^9\d{8}$/.test(telefono)){
+    setError('telefono', 'Celular peruano válido: 9 dígitos, empieza con 9.'); ok = false;
+  } else setError('telefono', '');
+
+  if(!/^\d{8}$/.test(dni)){
+    setError('dni', 'El DNI debe tener 8 dígitos.'); ok = false;
+  } else setError('dni', '');
+
+  return ok;
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  msg.className = 'msg';
+
+  const nombre = document.getElementById('f-nombre').value.trim();
+  const telefono = document.getElementById('f-telefono').value.replace(/[\s-]/g,'');
+  const dni = document.getElementById('f-dni').value.trim();
+  const unasam = form.querySelector('input[name="unasam"]:checked').value;
+
+  if(!validate(nombre, telefono, dni)) return;
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Enviando…';
+
+  try{
+    const r = await fetch('/api/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, telefono, dni, unasam }),
+    });
+    const data = await r.json();
+
+    if(r.ok && data.ok){
+      showMsg('ok', '✅ Listo. Ya estás en la lista. Nos vemos el 29 de octubre — síguenos en @desencajado.huaraz para no perderte nada.');
+      form.reset();
+      form.querySelector('input[name="unasam"][value="Sí"]').checked = true;
+      loadCount();
+    } else if(data.errors){
+      Object.entries(data.errors).forEach(([field, text]) => setError(field, text));
+      showMsg('error', 'Revisa los campos marcados.');
+    } else {
+      showMsg('error', data.error || 'No pudimos registrarte. Intenta de nuevo.');
+    }
+  }catch{
+    showMsg('error', 'Error de conexión. Intenta de nuevo en un momento.');
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Quiero mi lugar 🧠';
+  }
+});
+
+/* ═══ POPUP de promoción activa ═══ */
+function seenPromoCodes(){
+  try { return JSON.parse(localStorage.getItem('desencajado_seen_promos') || '[]'); } catch { return []; }
+}
+
+function markPromoSeen(code){
+  try {
+    const seen = seenPromoCodes();
+    if (!seen.includes(code)) localStorage.setItem('desencajado_seen_promos', JSON.stringify([...seen, code]));
+  } catch { /* localStorage no disponible */ }
+}
+
+function formatVigencia(promo){
+  if (!promo.starts_at && !promo.ends_at) return '';
+  if (promo.ends_at && !promo.starts_at) return `Válido hasta ${promo.ends_at}`;
+  if (promo.starts_at && !promo.ends_at) return `Válido desde ${promo.starts_at}`;
+  return `Válido del ${promo.starts_at} al ${promo.ends_at}`;
+}
+
+function formatCountdown(endsAt){
+  if (!endsAt) return '';
+  const end = new Date(endsAt);
+  if (Number.isNaN(end.getTime())) return '';
+  const diffMs = end.getTime() - Date.now();
+  if (diffMs <= 0) return '';
+  const mins = Math.floor(diffMs / 60000);
+  const days = Math.floor(mins / 1440);
+  const hours = Math.floor((mins % 1440) / 60);
+  if (days > 0) return ` · ⏳ Termina en ${days}d ${hours}h`;
+  if (hours > 0) return ` · ⏳ Termina en ${hours}h ${mins % 60}m`;
+  return ` · ⏳ Termina en ${mins % 60}m`;
+}
+
+async function loadPromoPopup(){
+  try{
+    const r = await fetch('/api/promotions');
+    const data = await r.json();
+    if (!data.ok || !data.items || data.items.length === 0) return;
+
+    const seen = seenPromoCodes();
+    const promo = data.items.find(p => !seen.includes(p.publication_code));
+    if (!promo) return;
+
+    const photoEl = document.getElementById('popup-photo');
+    if (promo.photo_url) { photoEl.src = promo.photo_url; photoEl.style.display = 'block'; }
+    else photoEl.style.display = 'none';
+    document.getElementById('popup-title').textContent = promo.title;
+    document.getElementById('popup-body').textContent = promo.body;
+    document.getElementById('popup-vigencia').textContent = formatVigencia(promo) + formatCountdown(promo.ends_at);
+    document.getElementById('popup-chips').innerHTML = (promo.products || []).map(p => `<span class="chip">${escapeHtml(p.name)}</span>`).join('');
+    document.getElementById('promo-popup').classList.add('show');
+    markPromoSeen(promo.publication_code);
+  }catch{ /* sin conexión: no mostrar popup */ }
+}
+
+document.getElementById('popup-close-btn').addEventListener('click', () => {
+  document.getElementById('promo-popup').classList.remove('show');
+});
+
+loadPromoPopup();
+</script>
+</body>
+</html>
