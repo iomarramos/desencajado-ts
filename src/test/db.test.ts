@@ -303,6 +303,43 @@ test('adminSignupSourceCounts: cuenta cuántos vinieron del QR del local vs. la 
   assert.equal(after.web, before.web);
 });
 
+// ───────────────────────── recompensa de cumpleaños ─────────────────────────
+
+test('cumpleaños: rechaza fechas inválidas', () => {
+  const user = makeUser('Cumple Inválido');
+  assert.throws(() => db.setUserBirthdate(user.id, 'no-es-fecha'), /INVALID_BIRTHDATE/);
+  assert.throws(() => db.setUserBirthdate(user.id, '31-12-2000'), /INVALID_BIRTHDATE/);
+});
+
+test('cumpleaños: da el bono solo el día correcto y solo una vez al año', () => {
+  const today = new Date();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+
+  const birthdayUser = makeUser('Cumple Hoy');
+  db.setUserBirthdate(birthdayUser.id, `1995-${mm}-${dd}`);
+
+  const otherUser = makeUser('Cumple Otro Día');
+  const otherMonth = mm === '01' ? '02' : '01';
+  db.setUserBirthdate(otherUser.id, `1995-${otherMonth}-15`);
+
+  const balanceBefore = db.getPointsBalance(birthdayUser.id);
+
+  const first = db.grantBirthdayBonusIfDue(birthdayUser.id);
+  assert.equal(first.granted, true);
+  assert.ok(first.points > 0);
+  assert.equal(db.getPointsBalance(birthdayUser.id), balanceBefore + first.points);
+
+  // segunda vez el mismo año: no se repite
+  const second = db.grantBirthdayBonusIfDue(birthdayUser.id);
+  assert.equal(second.granted, false);
+  assert.equal(db.getPointsBalance(birthdayUser.id), balanceBefore + first.points);
+
+  // otro usuario cuyo cumpleaños no es hoy: nunca se le da
+  const notToday = db.grantBirthdayBonusIfDue(otherUser.id);
+  assert.equal(notToday.granted, false);
+});
+
 // ───────────────────────── niveles de fidelidad ─────────────────────────
 
 test('niveles: sube de bronce a plata a oro según puntos de por vida, y el canje no baja de nivel', () => {

@@ -6,7 +6,7 @@ import type { PushSubscriptionDbRow } from './db';
 const {
   addSubscriber, dniExists, getCount, listSubscribers,
   upsertGoogleUser, getUserById, getUserByEmail, getUserByReferralCode, setReferredBy,
-  setUserContactInfo, setTotpSecret, enableTotp, markWalletSaved, listWalletSavedUserIds,
+  setUserContactInfo, setUserBirthdate, grantBirthdayBonusIfDue, setTotpSecret, enableTotp, markWalletSaved, listWalletSavedUserIds,
   createSession, getSession, setSessionStage, deleteSession, deleteAllSessionsForUser,
   isTotpLocked, registerTotpFailure, resetTotpAttempts, TOTP_LOCKOUT_MINUTES,
   addPurchase, getPointsBalance, listPurchasesByUser, redeemPoints, getRewardProgress, SOLES_PER_PUNTO,
@@ -309,6 +309,7 @@ function serializeUser(user: NonNullable<ReturnType<typeof getUserById>>) {
     spinStatus: getSpinStatus(user.id),
     profileFields: getUserProfileValues(user.id),
     referralCode: user.referral_code,
+    birthdate: user.birthdate,
     totpEnabled: Boolean(user.totp_enabled),
     familyGroup: family,
     solesPerPunto: SOLES_PER_PUNTO,
@@ -358,7 +359,36 @@ async function handleMe(req: Req, res: Res): Promise<void> {
     });
   }
 
-  sendJson(res, 200, { authenticated: true, stage: 'active', user: serializeUser(user) });
+  // Se revisa en cada login: si hoy es su cumpleaños y no se le pagó ya
+  // este año, se le da el bono antes de armar la respuesta (así reward/tier
+  // ya salen con el saldo actualizado).
+  const birthdayBonus = grantBirthdayBonusIfDue(user.id);
+
+  sendJson(res, 200, {
+    authenticated: true,
+    stage: 'active',
+    user: serializeUser(user),
+    ...(birthdayBonus.granted ? { birthdayBonus } : {}),
+  });
+}
+
+async function handleSetBirthdate(req: Req, res: Res): Promise<void> {
+  const found = getSessionFromRequest(req);
+  if (!found) return sendJson(res, 401, { ok: false, error: 'No autenticado.' });
+
+  let body: any;
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    return sendJson(res, 400, { ok: false, error: 'JSON inválido.' });
+  }
+
+  try {
+    setUserBirthdate(found.session.user_id, String(body.birthdate || ''));
+    sendJson(res, 200, { ok: true });
+  } catch {
+    sendJson(res, 400, { ok: false, error: 'Fecha inválida. Usa el formato AAAA-MM-DD.' });
+  }
 }
 
 async function handleProfileComplete(req: Req, res: Res): Promise<void> {
@@ -1502,6 +1532,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url === '/api/logout-all') return handleLogoutAll(req, res);
     if (req.method === 'GET' && url === '/api/me') return await handleMe(req, res);
     if (req.method === 'POST' && url === '/api/profile/complete') return await handleProfileComplete(req, res);
+    if (req.method === 'POST' && url === '/api/profile/birthdate') return await handleSetBirthdate(req, res);
     if (req.method === 'POST' && url === '/api/2fa/setup') return await handleTotpSetup(req, res);
     if (req.method === 'POST' && url === '/api/2fa/verify') return await handleTotpVerify(req, res);
 

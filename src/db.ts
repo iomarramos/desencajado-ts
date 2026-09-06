@@ -220,6 +220,13 @@ ensureColumn('users', 'signup_source', "TEXT NOT NULL DEFAULT 'web'");
 // NULL = el producto no tiene precio de socio, se vende solo al precio normal.
 ensureColumn('products', 'member_price', 'REAL');
 
+// Recompensa de cumpleaños: Google no entrega la fecha de nacimiento, así
+// que se pide aparte (opcional) y se revisa en cada login (ver /api/me).
+// last_birthday_bonus_year evita pagar el bono más de una vez el mismo año
+// sin importar cuántas veces el cliente entre ese día.
+ensureColumn('users', 'birthdate', 'TEXT');
+ensureColumn('users', 'last_birthday_bonus_year', 'INTEGER');
+
 // Único entre quienes ya lo llenaron: SQLite no deja agregar UNIQUE en un
 // ALTER TABLE ADD COLUMN, así que va como índice parcial aparte. Permite
 // múltiples NULL (usuarios que aún no completaron su perfil).
@@ -240,6 +247,7 @@ const SOLES_PER_PUNTO = Number(process.env.SOLES_PER_PUNTO) > 0 ? Number(process
 const REWARD_THRESHOLD = Number(process.env.REWARD_THRESHOLD) > 0 ? Number(process.env.REWARD_THRESHOLD) : 50;
 const REFERRAL_BONUS_POINTS = Number(process.env.REFERRAL_BONUS_POINTS) >= 0 ? Number(process.env.REFERRAL_BONUS_POINTS) : 20;
 const REFERRAL_WELCOME_POINTS = Number(process.env.REFERRAL_WELCOME_POINTS) >= 0 ? Number(process.env.REFERRAL_WELCOME_POINTS) : 10;
+const BIRTHDAY_BONUS_POINTS = Number(process.env.BIRTHDAY_BONUS_POINTS) >= 0 ? Number(process.env.BIRTHDAY_BONUS_POINTS) : 30;
 const TOTP_MAX_ATTEMPTS = Number(process.env.TOTP_MAX_ATTEMPTS) > 0 ? Number(process.env.TOTP_MAX_ATTEMPTS) : 5;
 const TOTP_LOCKOUT_MINUTES = Number(process.env.TOTP_LOCKOUT_MINUTES) > 0 ? Number(process.env.TOTP_LOCKOUT_MINUTES) : 5;
 const TIER_SILVER_THRESHOLD = Number(process.env.TIER_SILVER_THRESHOLD) >= 0 ? Number(process.env.TIER_SILVER_THRESHOLD) : 100;
@@ -275,6 +283,8 @@ export interface User {
   dni: string | null;
   telefono: string | null;
   signup_source: string;
+  birthdate: string | null;
+  last_birthday_bonus_year: number | null;
 }
 
 export interface Session {
@@ -451,6 +461,17 @@ const updateUserProfileStmt = db.prepare(
   'UPDATE users SET name = ?, avatar_url = ? WHERE id = ?'
 );
 const setUserContactStmt = db.prepare('UPDATE users SET dni = ?, telefono = ? WHERE id = ?');
+const setUserBirthdateStmt = db.prepare('UPDATE users SET birthdate = ? WHERE id = ?');
+// Atómico a propósito (como claimSpinStmt): revisa "¿hoy es su cumpleaños y
+// no se le pagó ya este año?" y marca el año dentro de la misma sentencia,
+// así que dos /api/me casi simultáneos el día del cumpleaños no pagan el
+// bono dos veces.
+const grantBirthdayBonusStmt = db.prepare(`
+  UPDATE users SET last_birthday_bonus_year = CAST(strftime('%Y', 'now') AS INTEGER)
+  WHERE id = ? AND birthdate IS NOT NULL
+    AND strftime('%m-%d', birthdate) = strftime('%m-%d', 'now')
+    AND (last_birthday_bonus_year IS NULL OR last_birthday_bonus_year < CAST(strftime('%Y', 'now') AS INTEGER))
+`);
 const setReferredByStmt = db.prepare('UPDATE users SET referred_by = ? WHERE id = ? AND referred_by IS NULL');
 const deleteAllSessionsForUserStmt = db.prepare('DELETE FROM sessions WHERE user_id = ?');
 const setTotpSecretStmt = db.prepare('UPDATE users SET totp_secret = ?, totp_enabled = 0 WHERE id = ?');
@@ -514,6 +535,25 @@ function setUserContactInfo(userId: number, dni: string, telefono: string): void
     }
     throw err;
   }
+}
+
+// Fecha de nacimiento, opcional (a diferencia de dni/telefono no bloquea el
+// acceso a la cuenta) — es la base de la recompensa de cumpleaños.
+function setUserBirthdate(userId: number, birthdate: string): void {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(birthdate) || Number.isNaN(new Date(birthdate).getTime())) {
+    throw new Error('INVALID_BIRTHDATE');
+  }
+  setUserBirthdateStmt.run(birthdate, userId);
+}
+
+// Se llama en cada login (ver /api/me): si hoy es el cumpleaños del cliente
+// y no se le pagó ya este año, le da BIRTHDAY_BONUS_POINTS una sola vez.
+function grantBirthdayBonusIfDue(userId: number): { granted: boolean; points: number } {
+  if (BIRTHDAY_BONUS_POINTS <= 0) return { granted: false, points: 0 };
+  const info = grantBirthdayBonusStmt.run(userId);
+  if (info.changes === 0) return { granted: false, points: 0 };
+  insertLedgerStmt.run(userId, BIRTHDAY_BONUS_POINTS, '🎂 Bono de cumpleaños');
+  return { granted: true, points: BIRTHDAY_BONUS_POINTS };
 }
 
 // Marca que el usuario abrió el link "Guardar en Google Wallet" — es la
@@ -1938,6 +1978,8 @@ module.exports = {
   getUserByReferralCode,
   setReferredBy,
   setUserContactInfo,
+  setUserBirthdate,
+  grantBirthdayBonusIfDue,
   setTotpSecret,
   enableTotp,
   markWalletSaved,

@@ -262,6 +262,22 @@ footer{background:#081130;color:rgba(255,255,255,.7);padding:2rem 5vw;text-align
     <div class="msg" id="spin-msg"></div>
   </div>
 
+  <div class="card">
+    <h2>🎂 Tu cumpleaños</h2>
+    <div id="birthday-form">
+      <p class="lead" style="font-size:.85rem;margin-bottom:.8rem">Guárdalo una vez y ese día te damos estrellas de regalo, automático.</p>
+      <div style="display:flex;gap:.8rem;flex-wrap:wrap;align-items:flex-end">
+        <div class="field" style="margin:0">
+          <label for="birthday-input">Fecha de nacimiento</label>
+          <input type="date" id="birthday-input">
+        </div>
+        <button class="btn small" id="birthday-save-btn">Guardar</button>
+      </div>
+      <div class="msg" id="birthday-msg"></div>
+    </div>
+    <p class="lead hidden" id="birthday-saved" style="font-size:.85rem"></p>
+  </div>
+
   <div class="card hidden" id="combos-card">
     <h2>🥤 Combos para socios</h2>
     <p class="lead" style="font-size:.85rem;margin-bottom:1rem">Precio especial solo por estar logueado en tu cuenta.</p>
@@ -448,11 +464,23 @@ async function init(){
 
   if (data.authenticated) {
     currentUser = data.user;
-    renderWallet(data.user);
+    renderWallet(data.user, data.birthdayBonus);
     showView('wallet');
   } else {
     showView('login');
   }
+}
+
+function showBirthdayBonusBanner(points){
+  const el = document.getElementById('promo-banner');
+  const div = document.createElement('div');
+  div.className = 'promo';
+  div.innerHTML = `<div class="promo-body">
+      <b>🎂 ¡Feliz cumpleaños!</b>
+      <p>Te regalamos +${points} estrellas por tu día. ¡Que lo disfrutes!</p>
+    </div><button class="promo-close" aria-label="Cerrar">✕</button>`;
+  div.querySelector('.promo-close').onclick = () => div.remove();
+  el.prepend(div);
 }
 
 document.getElementById('profile-confirm-btn').addEventListener('click', async () => {
@@ -539,7 +567,7 @@ document.getElementById('logout-all-btn').addEventListener('click', async () => 
 
 // ═══ Wallet principal ═══
 
-function renderWallet(user){
+function renderWallet(user, birthdayBonus){
   document.getElementById('wallet-name').textContent = user.name;
   document.getElementById('wallet-email').textContent = user.email;
   document.getElementById('wallet-avatar').src = user.avatarUrl ||
@@ -551,6 +579,7 @@ function renderWallet(user){
   renderTier(user.tier);
   renderSpin(user.spinStatus);
   renderExtraInfoCard(user.profileFields);
+  renderBirthday(user.birthdate);
   loadCombos();
 
   document.getElementById('copy-ref-btn').onclick = () => {
@@ -602,7 +631,11 @@ function renderWallet(user){
 
   setupPushButton(user);
   loadPurchases();
-  loadPromotions();
+  // loadPromotions limpia y repinta #promo-banner, así que el aviso de
+  // cumpleaños se agrega después de que termine (si no, lo borraría).
+  loadPromotions().then(() => {
+    if (birthdayBonus && birthdayBonus.granted) showBirthdayBonusBanner(birthdayBonus.points);
+  });
   connectEvents();
 }
 
@@ -732,6 +765,29 @@ async function loadPurchases(){
     body.appendChild(tr);
   });
 }
+
+function renderBirthday(birthdate){
+  const form = document.getElementById('birthday-form');
+  const saved = document.getElementById('birthday-saved');
+  if (birthdate) {
+    form.classList.add('hidden');
+    saved.classList.remove('hidden');
+    const [y, m, d] = birthdate.split('-');
+    saved.textContent = `🎉 Guardado: ${d}/${m}/${y} — nos vemos ese día.`;
+  } else {
+    form.classList.remove('hidden');
+    saved.classList.add('hidden');
+  }
+}
+
+document.getElementById('birthday-save-btn').addEventListener('click', async () => {
+  const birthdate = document.getElementById('birthday-input').value;
+  if (!birthdate) { setMsg('birthday-msg', 'error', 'Elige una fecha.'); return; }
+  const { ok, data } = await api('/api/profile/birthdate', { method: 'POST', body: JSON.stringify({ birthdate }) });
+  if (!ok) { setMsg('birthday-msg', 'error', data.error || 'No se pudo guardar.'); return; }
+  currentUser.birthdate = birthdate;
+  renderBirthday(birthdate);
+});
 
 async function loadCombos(){
   const { ok, data } = await api('/api/products/combos');
