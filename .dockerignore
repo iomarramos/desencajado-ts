@@ -1,4 +1,5 @@
 node_modules
+dist
 data
 *.sqlite
 *.sqlite-journal
@@ -9,5 +10,4 @@ data
 .env
 .env.*
 !.env.example
-test
 npm-debug.log

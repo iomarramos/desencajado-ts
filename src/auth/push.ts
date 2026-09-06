@@ -1,4 +1,4 @@
-const webpush = require('web-push');
+import webpush from 'web-push';
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
@@ -10,17 +10,25 @@ if (configured) {
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 }
 
-function isConfigured() {
+function isConfigured(): boolean {
   return configured;
 }
 
-function publicKey() {
+function publicKey(): string {
   return VAPID_PUBLIC_KEY;
 }
 
+export interface PushSubscriptionRow {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
+type SendResult = { ok: true } | { ok: false; gone: boolean };
+
 // Envía la notificación y reporta si la suscripción quedó inválida (404/410)
 // para que el llamador la borre de la base de datos.
-async function sendToSubscription(subscription, payload) {
+async function sendToSubscription(subscription: PushSubscriptionRow, payload: unknown): Promise<SendResult> {
   try {
     await webpush.sendNotification(
       {
@@ -31,7 +39,8 @@ async function sendToSubscription(subscription, payload) {
     );
     return { ok: true };
   } catch (err) {
-    const gone = err.statusCode === 404 || err.statusCode === 410;
+    const statusCode = (err as { statusCode?: number }).statusCode;
+    const gone = statusCode === 404 || statusCode === 410;
     return { ok: false, gone };
   }
 }

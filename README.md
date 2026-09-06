@@ -31,9 +31,10 @@ Sitio de **DESENCAJADO — Papas y Café** (Huaraz) con dos partes:
    nacimiento, un número de referencia) sin tocar código — si se marca
    obligatorio, se le pide la próxima vez que entra a su cuenta.
 
-Todo corre en un servidor HTTP plano (sin frameworks) con persistencia en
-SQLite, con tests automatizados (`node:test`, sin dependencias), CI en
-GitHub Actions, y listo para correr en Docker.
+Todo corre en un servidor HTTP plano (sin frameworks), escrito en
+**TypeScript** con `strict: true`, con persistencia en SQLite, tests
+automatizados (`node:test`, sin dependencias), CI en GitHub Actions, y
+listo para correr en Docker.
 
 ## Requisitos
 
@@ -42,6 +43,8 @@ GitHub Actions, y listo para correr en Docker.
   `--experimental-sqlite` para poder usarlo (falla con
   `ERR_UNKNOWN_BUILTIN_MODULE` sin él); versiones más nuevas de Node 22 no
   lo necesitan — usá la última patch disponible de Node 22 si podés.
+- `typescript` como única **devDependency** (compila `src/` → `dist/`; no
+  agrega nada a producción, `npm ci --omit=dev` no la instala).
 - El TOTP y el JWT de Google Wallet se implementan con `node:crypto` puro
   (sin dependencias). El QR de 2FA se dibuja en el navegador con
   [qrcodejs](https://github.com/davidshimjs/qrcodejs) vía CDN, así el
@@ -100,13 +103,21 @@ backend responde con un error claro si se llama igual al endpoint).
 npm start
 ```
 
-El servidor levanta en `http://localhost:3000` (o el puerto indicado por la
-variable de entorno `PORT`).
+`npm start` compila TypeScript automáticamente (`prestart` corre
+`npm run build`, que es `tsc`) y después arranca `node dist/server.js`. El
+servidor levanta en `http://localhost:3000` (o el puerto indicado por la
+variable de entorno `PORT`). Para desarrollo con recompilación en caliente:
+`npm run dev` (`tsc --watch`) en una terminal y `node dist/server.js` en otra.
 
 ## Cómo funciona
 
-- `server.js`: servidor HTTP que sirve `public/` y expone toda la API.
-- `db.js`: acceso a SQLite (`data/suscripciones.sqlite`, se crea sola y no
+El código fuente vive en `src/` (TypeScript); `tsc` lo compila a `dist/`
+(JavaScript plano, con source maps), que es lo que realmente se ejecuta.
+`public/` (HTML/CSS/JS vanilla del navegador) no pasa por este build —
+sigue siendo JavaScript simple sin bundler, a propósito.
+
+- `src/server.ts`: servidor HTTP que sirve `public/` y expone toda la API.
+- `src/db.ts`: acceso a SQLite (`data/suscripciones.sqlite`, se crea sola y no
   se versiona en git). Tablas: `subscribers` (pre-registro), `users`,
   `sessions`, `purchases`, `points_ledger`, `family_groups`, `products`,
   `promotions`, `promotion_products`, `promotion_codes`,
@@ -119,13 +130,13 @@ variable de entorno `PORT`).
   `family_group_id`, `referred_by`, etc.). Los listados del admin
   (grupos familiares, promociones) traen los datos relacionados de toda
   la página en una sola consulta extra en vez de una por fila.
-- `auth/google.js`: flujo OAuth2 con Google (authorization code + verificación
+- `src/auth/google.ts`: flujo OAuth2 con Google (authorization code + verificación
   del `id_token` vía el endpoint `tokeninfo` de Google).
-- `auth/totp.js`: generación y verificación de códigos TOTP (RFC 6238) para
+- `src/auth/totp.ts`: generación y verificación de códigos TOTP (RFC 6238) para
   el segundo factor, con `node:crypto` puro.
-- `auth/push.js`: envío de notificaciones Web Push (usa `web-push` para el
+- `src/auth/push.ts`: envío de notificaciones Web Push (usa `web-push` para el
   cifrado VAPID/aes128gcm).
-- `auth/googleWallet.js`: construye y firma (RS256) el JWT "Save to Google
+- `src/auth/googleWallet.ts`: construye y firma (RS256) el JWT "Save to Google
   Wallet" con la tarjeta de fidelidad del cliente, y además llama a la
   **Wallet REST API** (con un access token de service account) para tres
   cosas más: actualizar el saldo de estrellas en el pase que el cliente ya
@@ -391,13 +402,17 @@ Poner cualquiera de las dos en `0` la desactiva.
 ## Tests
 
 Sin dependencias externas — usa el test runner nativo de Node
-(`node:test` + `node:assert`). Cada archivo de test usa su propia base de
-datos temporal (vía la variable `DB_FILE`, que sobreescribe la ruta por
-defecto de `data/suscripciones.sqlite`) para no tocar datos de desarrollo.
+(`node:test` + `node:assert`), escritos en TypeScript (`src/test/*.test.ts`).
+Cada archivo de test usa su propia base de datos temporal (vía la variable
+`DB_FILE`, que sobreescribe la ruta por defecto de
+`data/suscripciones.sqlite`) para no tocar datos de desarrollo.
 
 ```bash
 npm test
 ```
+
+`npm test` compila primero (`pretest` → `tsc`) y después corre
+`node --test` sobre los `.js` ya compilados en `dist/test/`.
 
 Cubre: TOTP (generar/verificar/tolerancia de reloj), rate limiting,
 referidos (bono único), grupo familiar (crear/unirse/expulsar/salir),
@@ -407,10 +422,11 @@ recompensa, y bloqueo/reseteo de intentos de 2FA.
 
 ## CI
 
-`.github/workflows/ci.yml` corre en cada push/PR: verifica sintaxis de
-todos los `.js` del proyecto, corre `npm test`, y levanta el servidor real
-para un smoke test (`GET /`, `/cuenta.html`, `/admin.html` y
-`/api/subscribe/count`).
+`.github/workflows/ci.yml` corre en cada push/PR: compila TypeScript
+(`npm run build` — esto también es el chequeo de tipos, ya que `tsc` falla
+si hay un error de tipos), corre los tests contra el `.js` compilado, y
+levanta el servidor real para un smoke test (`GET /`, `/cuenta.html`,
+`/admin.html` y `/api/subscribe/count`).
 
 ## Docker
 
@@ -419,22 +435,26 @@ cp .env.example .env   # completar con tus valores
 docker compose up --build
 ```
 
-Esto construye la imagen (`node:22-slim`), instala solo dependencias de
-producción, y monta un volumen (`desencajado_data`) para `data/` — la base
-SQLite sobrevive a recrear el contenedor. El puerto por defecto es `3000`
-(cambiar el mapeo en `docker-compose.yml` para usar otro puerto de host).
+El `Dockerfile` compila en dos etapas: la primera (`node:22-slim`) instala
+todas las dependencias (incluida `typescript`) y corre `tsc`; la segunda
+copia solo el `dist/` ya compilado y `public/`, e instala únicamente
+dependencias de producción (`npm ci --omit=dev` — `typescript` nunca llega
+a la imagen final). También monta un volumen (`desencajado_data`) para
+`data/` — la base SQLite sobrevive a recrear el contenedor. El puerto por
+defecto es `3000` (cambiar el mapeo en `docker-compose.yml` para usar otro
+puerto de host).
 
-**Backup de la base de datos**: `scripts/backup.js` usa `VACUUM INTO` de
+**Backup de la base de datos**: `src/scripts/backup.ts` usa `VACUUM INTO` de
 SQLite para sacar una copia consistente sin parar el servidor (evita el
 riesgo de copiar el archivo `.sqlite` a mano mientras hay una escritura en
 curso):
 
 ```bash
 # En local
-npm run backup                       # guarda en data/backups/
+npm run backup                       # compila y guarda en data/backups/
 
-# Contra el contenedor (ejecuta el script dentro, ya tiene acceso al volumen)
-docker compose exec app node scripts/backup.js
+# Contra el contenedor (ejecuta el script ya compilado, tiene acceso al volumen)
+docker compose exec app node dist/scripts/backup.js
 ```
 
 No hay backups automáticos/programados — conviene agregar un cron (en el
@@ -473,7 +493,7 @@ canjear puede acercarse al total de clientes.
 **Envío a Google Wallet en tandas**: al activar una promoción (de
 inmediato o cuando le toca por el scheduler), el mensaje y la imagen
 destacada de Google Wallet se envían en segundo plano con un máximo de 5
-llamadas simultáneas a la API de Google (`runInBatches` en `server.js`),
+llamadas simultáneas a la API de Google (`runInBatches` en `src/server.ts`),
 en vez de un `Promise.all` sin límite que golpearía a Google con cientos
 de llamadas a la vez. La respuesta al admin ya no espera a que termine ese
 envío — `walletPushQueued` indica cuántos quedaron encolados, no cuántos
@@ -484,7 +504,7 @@ en el log del servidor).
 
 Hoy una promoción se publica por tres canales: popup en la web, notificación
 push del navegador, y mensaje al pase de Google Wallet ya guardado (ver
-`auth/googleWallet.js`). **No hay integración de WhatsApp** — quedó
+`src/auth/googleWallet.ts`). **No hay integración de WhatsApp** — quedó
 pendiente a propósito, porque la opción correcta depende de una decisión de
 negocio (verificación con Meta, costo por mensaje) y no solo de código.
 Opciones evaluadas para cuando se decida implementarlo:
@@ -526,7 +546,7 @@ quede lista y se publique sola más adelante:
   (`scheduled: true` en la respuesta del admin) sin avisarle a nadie
   todavía. El popup/banner tampoco la muestra hasta esa fecha (esto ya
   existía). La columna `activated_at` queda en `NULL` mientras espera.
-- Un scheduler interno (`runPromotionScheduler` en `server.js`) revisa las
+- Un scheduler interno (`runPromotionScheduler` en `src/server.ts`) revisa las
   promociones pendientes **una vez al arrancar el servidor y luego una vez
   al día** — la programación es por **día**, no por hora todavía (no tiene
   sentido revisar más seguido si la granularidad es diaria). Apenas

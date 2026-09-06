@@ -1,9 +1,9 @@
-const path = require('node:path');
-const fs = require('node:fs');
-const crypto = require('node:crypto');
-const { DatabaseSync } = require('node:sqlite');
+import path from 'node:path';
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+import { DatabaseSync } from 'node:sqlite';
 
-const DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = path.join(__dirname, '..', 'data');
 // DB_FILE permite apuntar a otra base (ej. una temporal en los tests) sin
 // tocar la de desarrollo; por defecto sigue siendo data/suscripciones.sqlite.
 const DB_PATH = process.env.DB_FILE || path.join(DATA_DIR, 'suscripciones.sqlite');
@@ -175,13 +175,18 @@ db.exec(`
   )
 `);
 
+interface ColumnInfo {
+  name: string;
+  [key: string]: unknown;
+}
+
 // Migración in-place: agrega columnas nuevas a `promotions` si la base de
 // datos ya existía de una versión anterior (SQLite no soporta
 // "ADD COLUMN IF NOT EXISTS").
 // Devuelve true si la columna no existía y hubo que agregarla — para
 // migraciones que además necesitan un backfill único (ver activated_at).
-function ensureColumn(table, column, definition) {
-  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+function ensureColumn(table: string, column: string, definition: string): boolean {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as unknown as ColumnInfo[];
   if (columns.some((c) => c.name === column)) return false;
   db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   return true;
@@ -233,6 +238,156 @@ const TIER_SILVER_THRESHOLD = Number(process.env.TIER_SILVER_THRESHOLD) >= 0 ? N
 const TIER_GOLD_THRESHOLD = Number(process.env.TIER_GOLD_THRESHOLD) >= 0 ? Number(process.env.TIER_GOLD_THRESHOLD) : 300;
 const SPIN_COOLDOWN_HOURS = Number(process.env.SPIN_COOLDOWN_HOURS) > 0 ? Number(process.env.SPIN_COOLDOWN_HOURS) : 24;
 
+// ───────────────────────── tipos de dominio ─────────────────────────
+
+export interface Subscriber {
+  id: number;
+  nombre: string;
+  telefono: string;
+  dni: string;
+  unasam: string;
+  created_at: string;
+}
+
+export interface User {
+  id: number;
+  google_id: string;
+  email: string;
+  name: string;
+  avatar_url: string | null;
+  referral_code: string;
+  referred_by: number | null;
+  family_group_id: number | null;
+  totp_secret: string | null;
+  totp_enabled: number;
+  is_admin: number;
+  created_at: string;
+  wallet_saved_at: string | null;
+  last_spin_at: string | null;
+  dni: string | null;
+  telefono: string | null;
+}
+
+export interface Session {
+  token: string;
+  user_id: number;
+  stage: string;
+  created_at: string;
+  expires_at: string;
+  totp_attempts: number;
+  totp_locked_until: string | null;
+}
+
+export interface FamilyGroup {
+  id: number;
+  name: string;
+  owner_user_id: number;
+  invite_code: string;
+  created_at: string;
+}
+
+export interface FamilyMember {
+  id: number;
+  name: string;
+  email: string;
+  avatar_url: string | null;
+}
+
+export interface FamilyGroupWithMembers extends FamilyGroup {
+  members: FamilyMember[];
+}
+
+export interface Product {
+  id: number;
+  name: string;
+  photo_url: string | null;
+  price: number | null;
+  active: number;
+  created_at: string;
+}
+
+export interface ProfileField {
+  id: number;
+  field_key: string;
+  label: string;
+  field_type: string;
+  required: number;
+  active: number;
+  created_at: string;
+}
+
+export interface UserProfileValueRow {
+  id: number;
+  field_key: string;
+  label: string;
+  field_type: string;
+  required: number;
+  value: string | null;
+}
+
+export interface Promotion {
+  id: number;
+  title: string;
+  body: string;
+  active: number;
+  pushed_to: number;
+  created_at: string;
+  photo_url: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  publication_code: string | null;
+  activated_at: string | null;
+}
+
+export interface PromotionCode {
+  id: number;
+  promotion_id: number;
+  code: string;
+  label: string | null;
+  max_uses: number | null;
+  uses_count: number;
+  created_at: string;
+}
+
+export interface PromotionHydrated extends Promotion {
+  products: Product[];
+  codes: PromotionCode[];
+}
+
+export interface PromotionHydratedPublic extends Promotion {
+  products: Product[];
+}
+
+export interface PushSubscriptionDbRow {
+  id: number;
+  user_id: number;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  created_at: string;
+}
+
+export interface Purchase {
+  id: number;
+  monto: number;
+  producto: string | null;
+  puntos: number;
+  created_at: string;
+}
+
+export interface PaginationParams {
+  limit?: number | string;
+  page?: number | string;
+  q?: string;
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 // ───────────────────────── suscripciones (pre-apertura) ─────────────────────────
 
 const insertStmt = db.prepare(
@@ -244,31 +399,31 @@ const listStmt = db.prepare(
   'SELECT id, nombre, telefono, dni, unasam, created_at FROM subscribers ORDER BY id DESC'
 );
 
-function addSubscriber({ nombre, telefono, dni, unasam }) {
+function addSubscriber({ nombre, telefono, dni, unasam }: { nombre: string; telefono: string; dni: string; unasam: string }): void {
   insertStmt.run(nombre, telefono, dni, unasam);
 }
 
-function dniExists(dni) {
+function dniExists(dni: string): boolean {
   return findByDniStmt.get(dni) !== undefined;
 }
 
-function getCount() {
-  return countStmt.get().total;
+function getCount(): number {
+  return (countStmt.get() as unknown as { total: number }).total;
 }
 
-function listSubscribers() {
-  return listStmt.all();
+function listSubscribers(): Subscriber[] {
+  return listStmt.all() as unknown as Subscriber[];
 }
 
 // ───────────────────────── helpers ─────────────────────────
 
-function paginate({ limit = 20, page = 1 } = {}) {
+function paginate({ limit = 20, page = 1 }: PaginationParams = {}): { limit: number; offset: number; page: number } {
   const l = Math.min(Math.max(Number(limit) || 20, 1), 100);
   const p = Math.max(Number(page) || 1, 1);
   return { limit: l, offset: (p - 1) * l, page: p };
 }
 
-function randomCode(length = 8) {
+function randomCode(length = 8): string {
   return crypto.randomBytes(length).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, length).toUpperCase();
 }
 
@@ -294,42 +449,52 @@ const setFamilyGroupStmt = db.prepare('UPDATE users SET family_group_id = ? WHER
 const markWalletSavedStmt = db.prepare("UPDATE users SET wallet_saved_at = datetime('now') WHERE id = ?");
 const listWalletSavedUserIdsStmt = db.prepare('SELECT id FROM users WHERE wallet_saved_at IS NOT NULL');
 
-function upsertGoogleUser({ googleId, email, name, avatarUrl }) {
+function upsertGoogleUser({
+  googleId,
+  email,
+  name,
+  avatarUrl,
+}: {
+  googleId: string;
+  email: string;
+  name: string;
+  avatarUrl?: string | null;
+}): User {
   const cleanEmail = String(email || '').trim().toLowerCase();
-  const existing = getUserByGoogleIdStmt.get(googleId);
+  const existing = getUserByGoogleIdStmt.get(googleId) as unknown as User | undefined;
   if (existing) {
     updateUserProfileStmt.run(name, avatarUrl || null, existing.id);
-    return getUserByIdStmt.get(existing.id);
+    return getUserByIdStmt.get(existing.id) as unknown as User;
   }
-  let referralCode;
+  let referralCode: string;
   do {
     referralCode = randomCode(8);
   } while (getUserByReferralCodeStmt.get(referralCode));
   const info = insertUserStmt.run(googleId, cleanEmail, name, avatarUrl || null, referralCode);
-  return getUserByIdStmt.get(info.lastInsertRowid);
+  return getUserByIdStmt.get(info.lastInsertRowid) as unknown as User;
 }
 
-function getUserById(id) {
-  return getUserByIdStmt.get(id);
+function getUserById(id: number): User | undefined {
+  return getUserByIdStmt.get(id) as unknown as User | undefined;
 }
 
-function getUserByEmail(email) {
-  return getUserByEmailStmt.get(email);
+function getUserByEmail(email: string): User | undefined {
+  return getUserByEmailStmt.get(email) as unknown as User | undefined;
 }
 
-function getUserByReferralCode(code) {
-  return getUserByReferralCodeStmt.get(code);
+function getUserByReferralCode(code: string): User | undefined {
+  return getUserByReferralCodeStmt.get(code) as unknown as User | undefined;
 }
 
 // Vincula DNI y teléfono a la cuenta de wallet del cliente (Google no los
 // entrega en el login — se piden aparte, ver server.js: /api/profile/complete).
 // Es la base para poder cruzar más adelante con fecha de nacimiento y mandar
 // promociones dirigidas (ej. cumpleaños) por WhatsApp/SMS.
-function setUserContactInfo(userId, dni, telefono) {
+function setUserContactInfo(userId: number, dni: string, telefono: string): void {
   try {
     setUserContactStmt.run(dni, telefono, userId);
   } catch (err) {
-    if (String(err.message).includes('UNIQUE constraint failed')) {
+    if (String((err as Error).message).includes('UNIQUE constraint failed')) {
       throw new Error('DNI_TAKEN');
     }
     throw err;
@@ -339,17 +504,17 @@ function setUserContactInfo(userId, dni, telefono) {
 // Marca que el usuario abrió el link "Guardar en Google Wallet" — es la
 // única señal que tenemos de que su loyaltyObject fue creado del lado de
 // Google (la Wallet API no expone un endpoint para consultarlo).
-function markWalletSaved(userId) {
+function markWalletSaved(userId: number): void {
   markWalletSavedStmt.run(userId);
 }
 
-function listWalletSavedUserIds() {
-  return listWalletSavedUserIdsStmt.all().map((row) => row.id);
+function listWalletSavedUserIds(): number[] {
+  return (listWalletSavedUserIdsStmt.all() as unknown as { id: number }[]).map((row) => row.id);
 }
 
 // Solo aplica (y solo paga el bono) la primera vez: setReferredByStmt tiene
 // `AND referred_by IS NULL`, así que un segundo intento no vuelve a pagar.
-function setReferredBy(userId, referrerId) {
+function setReferredBy(userId: number, referrerId: number): boolean {
   if (userId === referrerId) return false;
   const info = setReferredByStmt.run(referrerId, userId);
   if (info.changes === 0) return false;
@@ -362,15 +527,15 @@ function setReferredBy(userId, referrerId) {
   return true;
 }
 
-function deleteAllSessionsForUser(userId) {
+function deleteAllSessionsForUser(userId: number): void {
   deleteAllSessionsForUserStmt.run(userId);
 }
 
-function setTotpSecret(userId, secret) {
+function setTotpSecret(userId: number, secret: string): void {
   setTotpSecretStmt.run(secret, userId);
 }
 
-function enableTotp(userId) {
+function enableTotp(userId: number): void {
   enableTotpStmt.run(userId);
 }
 
@@ -386,7 +551,7 @@ const deleteExpiredSessionsStmt = db.prepare("DELETE FROM sessions WHERE expires
 
 const SESSION_TTL_DAYS = 30;
 
-function createSession(userId, stage) {
+function createSession(userId: number, stage: string): string {
   deleteExpiredSessionsStmt.run();
   const token = crypto.randomBytes(32).toString('base64url');
   const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 86400_000).toISOString();
@@ -394,9 +559,9 @@ function createSession(userId, stage) {
   return token;
 }
 
-function getSession(token) {
+function getSession(token: string | undefined | null): Session | undefined {
   if (!token) return undefined;
-  const session = getSessionStmt.get(token);
+  const session = getSessionStmt.get(token) as unknown as Session | undefined;
   if (!session) return undefined;
   if (new Date(session.expires_at).getTime() < Date.now()) {
     deleteSessionStmt.run(token);
@@ -405,11 +570,11 @@ function getSession(token) {
   return session;
 }
 
-function setSessionStage(token, stage) {
+function setSessionStage(token: string, stage: string): void {
   setSessionStageStmt.run(stage, token);
 }
 
-function deleteSession(token) {
+function deleteSession(token: string): void {
   deleteSessionStmt.run(token);
 }
 
@@ -425,19 +590,19 @@ const resetTotpAttemptsStmt = db.prepare('UPDATE sessions SET totp_attempts = 0,
 // SQLite datetime('now', ...) devuelve "YYYY-MM-DD HH:MM:SS" en UTC pero sin
 // sufijo de zona horaria; hay que normalizarlo a ISO 8601 antes de comparar
 // con `new Date()`, si no V8 lo interpreta como hora local.
-function sqliteUtcToDate(value) {
+function sqliteUtcToDate(value: string): Date {
   return new Date(`${value.replace(' ', 'T')}Z`);
 }
 
-function isTotpLocked(session) {
+function isTotpLocked(session: Session): boolean {
   return Boolean(session.totp_locked_until && sqliteUtcToDate(session.totp_locked_until) > new Date());
 }
 
-function registerTotpFailure(token) {
+function registerTotpFailure(token: string): void {
   incrementTotpAttemptsStmt.run(TOTP_MAX_ATTEMPTS, `+${TOTP_LOCKOUT_MINUTES} minutes`, token);
 }
 
-function resetTotpAttempts(token) {
+function resetTotpAttempts(token: string): void {
   resetTotpAttemptsStmt.run(token);
 }
 
@@ -468,7 +633,11 @@ const listPurchasesByUserStmt = db.prepare(
 );
 const countPurchasesByUserStmt = db.prepare('SELECT COUNT(*) AS total FROM purchases WHERE user_id = ?');
 
-function addPurchase({ userId, monto, producto }) {
+function addPurchase({ userId, monto, producto }: { userId: number; monto: number; producto?: string | null }): {
+  purchaseId: number | bigint;
+  puntos: number;
+  balance: number;
+} {
   const puntos = Math.max(Math.floor(monto / SOLES_PER_PUNTO), 0);
   const info = insertPurchaseStmt.run(userId, monto, producto || null, puntos);
   if (puntos > 0) {
@@ -477,18 +646,18 @@ function addPurchase({ userId, monto, producto }) {
   return { purchaseId: info.lastInsertRowid, puntos, balance: getPointsBalance(userId) };
 }
 
-function getPointsBalance(userId) {
-  return balanceStmt.get(userId).balance;
+function getPointsBalance(userId: number): number {
+  return (balanceStmt.get(userId) as unknown as { balance: number }).balance;
 }
 
-function listPurchasesByUser(userId, { limit = 20, page = 1 } = {}) {
+function listPurchasesByUser(userId: number, { limit = 20, page = 1 }: PaginationParams = {}): PaginatedResult<Purchase> {
   const p = paginate({ limit, page });
-  const items = listPurchasesByUserStmt.all(userId, p.limit, p.offset);
-  const total = countPurchasesByUserStmt.get(userId).total;
+  const items = listPurchasesByUserStmt.all(userId, p.limit, p.offset) as unknown as Purchase[];
+  const total = (countPurchasesByUserStmt.get(userId) as unknown as { total: number }).total;
   return { items, total, page: p.page, limit: p.limit };
 }
 
-function redeemPoints(userId, puntos, motivo) {
+function redeemPoints(userId: number, puntos: number, motivo?: string): number {
   const amount = Math.floor(Number(puntos));
   if (!(amount > 0)) throw new Error('INVALID_AMOUNT');
   const claimed = insertLedgerIfBalanceStmt.run(userId, -amount, motivo || 'Canje', userId, amount);
@@ -496,7 +665,14 @@ function redeemPoints(userId, puntos, motivo) {
   return getPointsBalance(userId);
 }
 
-function getRewardProgress(userId) {
+function getRewardProgress(userId: number): {
+  balance: number;
+  threshold: number;
+  inCycle: number;
+  remaining: number;
+  progressPct: number;
+  rewardsAvailable: number;
+} {
   const balance = getPointsBalance(userId);
   const inCycle = ((balance % REWARD_THRESHOLD) + REWARD_THRESHOLD) % REWARD_THRESHOLD;
   return {
@@ -519,11 +695,20 @@ const lifetimePointsStmt = db.prepare(
   'SELECT COALESCE(SUM(delta), 0) AS total FROM points_ledger WHERE user_id = ? AND delta > 0'
 );
 
-function getLifetimePoints(userId) {
-  return lifetimePointsStmt.get(userId).total;
+function getLifetimePoints(userId: number): number {
+  return (lifetimePointsStmt.get(userId) as unknown as { total: number }).total;
 }
 
-function tierForPoints(lifetimePoints) {
+export type TierName = 'bronce' | 'plata' | 'oro';
+
+export interface TierStatus {
+  tier: TierName;
+  lifetimePoints: number;
+  nextTier: TierName | null;
+  pointsToNext: number;
+}
+
+function tierForPoints(lifetimePoints: number): TierStatus {
   if (lifetimePoints >= TIER_GOLD_THRESHOLD) {
     return { tier: 'oro', lifetimePoints, nextTier: null, pointsToNext: 0 };
   }
@@ -543,13 +728,19 @@ function tierForPoints(lifetimePoints) {
   };
 }
 
-function getTierForUser(userId) {
+function getTierForUser(userId: number): TierStatus {
   return tierForPoints(getLifetimePoints(userId));
 }
 
 // ───────────────────────── ruleta de premios ─────────────────────────
 
-const SPIN_PRIZES = [
+interface SpinPrize {
+  label: string;
+  points: number;
+  weight: number;
+}
+
+const SPIN_PRIZES: SpinPrize[] = [
   { label: 'Sigue participando', points: 0, weight: 10 },
   { label: '+5 estrellas', points: 5, weight: 40 },
   { label: '+10 estrellas', points: 10, weight: 30 },
@@ -558,7 +749,7 @@ const SPIN_PRIZES = [
 ];
 const SPIN_WEIGHT_TOTAL = SPIN_PRIZES.reduce((sum, p) => sum + p.weight, 0);
 
-function pickSpinPrize() {
+function pickSpinPrize(): SpinPrize {
   let roll = Math.random() * SPIN_WEIGHT_TOTAL;
   for (const prize of SPIN_PRIZES) {
     if (roll < prize.weight) return prize;
@@ -567,17 +758,23 @@ function pickSpinPrize() {
   return SPIN_PRIZES[SPIN_PRIZES.length - 1];
 }
 
-function nextSpinAt(user) {
-  if (!user.last_spin_at) return null;
+function nextSpinAt(user: User | undefined): Date | null {
+  if (!user || !user.last_spin_at) return null;
   return new Date(sqliteUtcToDate(user.last_spin_at).getTime() + SPIN_COOLDOWN_HOURS * 3600_000);
 }
 
-function getSpinStatus(userId) {
-  const next = nextSpinAt(getUserByIdStmt.get(userId));
+export interface SpinStatus {
+  available: boolean;
+  nextSpinAt: string | null;
+  cooldownHours: number;
+}
+
+function getSpinStatus(userId: number): SpinStatus {
+  const next = nextSpinAt(getUserByIdStmt.get(userId) as unknown as User | undefined);
   const available = !next || next <= new Date();
   return {
     available,
-    nextSpinAt: available ? null : next.toISOString(),
+    nextSpinAt: available || !next ? null : next.toISOString(),
     cooldownHours: SPIN_COOLDOWN_HOURS,
   };
 }
@@ -591,7 +788,7 @@ const claimSpinStmt = db.prepare(
    WHERE id = ? AND (last_spin_at IS NULL OR datetime(last_spin_at, '+' || ? || ' hours') <= datetime('now'))`
 );
 
-function spinWheel(userId) {
+function spinWheel(userId: number): { prize: SpinPrize; balance: number; spinStatus: SpinStatus } {
   const claimed = claimSpinStmt.run(userId, SPIN_COOLDOWN_HOURS);
   if (claimed.changes === 0) throw new Error('SPIN_COOLDOWN');
 
@@ -613,29 +810,29 @@ const listFamilyMembersStmt = db.prepare(
   'SELECT id, name, email, avatar_url FROM users WHERE family_group_id = ?'
 );
 
-function createFamilyGroup(userId, name) {
-  let inviteCode;
+function createFamilyGroup(userId: number, name: string): FamilyGroup {
+  let inviteCode: string;
   do {
     inviteCode = randomCode(6);
   } while (getFamilyGroupByInviteCodeStmt.get(inviteCode));
   const info = insertFamilyGroupStmt.run(name, userId, inviteCode);
   setFamilyGroupStmt.run(info.lastInsertRowid, userId);
-  return getFamilyGroupByIdStmt.get(info.lastInsertRowid);
+  return getFamilyGroupByIdStmt.get(info.lastInsertRowid) as unknown as FamilyGroup;
 }
 
-function joinFamilyGroup(userId, inviteCode) {
-  const group = getFamilyGroupByInviteCodeStmt.get(String(inviteCode || '').toUpperCase());
+function joinFamilyGroup(userId: number, inviteCode: string): FamilyGroup {
+  const group = getFamilyGroupByInviteCodeStmt.get(String(inviteCode || '').toUpperCase()) as unknown as FamilyGroup | undefined;
   if (!group) throw new Error('GROUP_NOT_FOUND');
   setFamilyGroupStmt.run(group.id, userId);
   return group;
 }
 
-function getFamilyGroupForUser(userId) {
+function getFamilyGroupForUser(userId: number): FamilyGroupWithMembers | null {
   const user = getUserById(userId);
   if (!user || !user.family_group_id) return null;
-  const group = getFamilyGroupByIdStmt.get(user.family_group_id);
+  const group = getFamilyGroupByIdStmt.get(user.family_group_id) as unknown as FamilyGroup | undefined;
   if (!group) return null;
-  return { ...group, members: listFamilyMembersStmt.all(group.id) };
+  return { ...group, members: listFamilyMembersStmt.all(group.id) as unknown as FamilyMember[] };
 }
 
 const clearFamilyGroupForAllMembersStmt = db.prepare('UPDATE users SET family_group_id = NULL WHERE family_group_id = ?');
@@ -643,10 +840,10 @@ const deleteFamilyGroupStmt = db.prepare('DELETE FROM family_groups WHERE id = ?
 
 // Si sale el dueño, el grupo se disuelve para todos (no hay a quién
 // transferir la propiedad); si sale un miembro normal, solo él se va.
-function leaveFamilyGroup(userId) {
+function leaveFamilyGroup(userId: number): { disbanded: boolean } {
   const user = getUserById(userId);
   if (!user || !user.family_group_id) throw new Error('NOT_IN_GROUP');
-  const group = getFamilyGroupByIdStmt.get(user.family_group_id);
+  const group = getFamilyGroupByIdStmt.get(user.family_group_id) as unknown as FamilyGroup;
 
   if (group.owner_user_id === userId) {
     clearFamilyGroupForAllMembersStmt.run(group.id);
@@ -657,10 +854,10 @@ function leaveFamilyGroup(userId) {
   return { disbanded: false };
 }
 
-function removeFamilyMember(ownerId, memberUserId) {
+function removeFamilyMember(ownerId: number, memberUserId: number): void {
   const owner = getUserById(ownerId);
   if (!owner || !owner.family_group_id) throw new Error('NOT_IN_GROUP');
-  const group = getFamilyGroupByIdStmt.get(owner.family_group_id);
+  const group = getFamilyGroupByIdStmt.get(owner.family_group_id) as unknown as FamilyGroup | undefined;
   if (!group || group.owner_user_id !== ownerId) throw new Error('NOT_OWNER');
   if (Number(memberUserId) === Number(ownerId)) throw new Error('CANNOT_REMOVE_SELF');
 
@@ -680,30 +877,30 @@ const adminListProductsStmt = db.prepare('SELECT * FROM products ORDER BY id DES
 const adminProductsCountStmt = db.prepare('SELECT COUNT(*) AS total FROM products');
 const deactivateProductStmt = db.prepare('UPDATE products SET active = 0 WHERE id = ?');
 
-function createProduct({ name, photoUrl, price }) {
+function createProduct({ name, photoUrl, price }: { name: string; photoUrl?: string | null; price?: number | string | null }): Product {
   const info = insertProductStmt.run(name, photoUrl || null, price != null && price !== '' ? Number(price) : null);
-  return getProductByIdStmt.get(info.lastInsertRowid);
+  return getProductByIdStmt.get(info.lastInsertRowid) as unknown as Product;
 }
 
-function getProductById(id) {
-  return getProductByIdStmt.get(id);
+function getProductById(id: number): Product | undefined {
+  return getProductByIdStmt.get(id) as unknown as Product | undefined;
 }
 
-function listActiveProducts() {
-  return listActiveProductsStmt.all();
+function listActiveProducts(): Product[] {
+  return listActiveProductsStmt.all() as unknown as Product[];
 }
 
-function adminListProducts({ limit = 20, page = 1 } = {}) {
+function adminListProducts({ limit = 20, page = 1 }: PaginationParams = {}): PaginatedResult<Product> {
   const p = paginate({ limit, page });
   return {
-    items: adminListProductsStmt.all(p.limit, p.offset),
-    total: adminProductsCountStmt.get().total,
+    items: adminListProductsStmt.all(p.limit, p.offset) as unknown as Product[],
+    total: (adminProductsCountStmt.get() as unknown as { total: number }).total,
     page: p.page,
     limit: p.limit,
   };
 }
 
-function deactivateProduct(id) {
+function deactivateProduct(id: number): void {
   deactivateProductStmt.run(id);
 }
 
@@ -711,8 +908,11 @@ const updateProductStmt = db.prepare('UPDATE products SET name = ?, photo_url = 
 const countPromotionProductsForProductStmt = db.prepare('SELECT COUNT(*) AS total FROM promotion_products WHERE product_id = ?');
 const deleteProductStmt = db.prepare('DELETE FROM products WHERE id = ?');
 
-function updateProduct(id, { name, photoUrl, price }) {
-  const existing = getProductByIdStmt.get(id);
+function updateProduct(
+  id: number,
+  { name, photoUrl, price }: { name?: string | null; photoUrl?: string | null; price?: number | string | null }
+): Product {
+  const existing = getProductByIdStmt.get(id) as unknown as Product | undefined;
   if (!existing) throw new Error('PRODUCT_NOT_FOUND');
   updateProductStmt.run(
     name != null && name !== '' ? name : existing.name,
@@ -720,13 +920,13 @@ function updateProduct(id, { name, photoUrl, price }) {
     price !== undefined ? (price != null && price !== '' ? Number(price) : null) : existing.price,
     id
   );
-  return getProductByIdStmt.get(id);
+  return getProductByIdStmt.get(id) as unknown as Product;
 }
 
 // Borrado real solo si el producto no está asociado a ninguna promoción; si
 // lo está, hay que desactivarlo en vez de borrarlo (no rompe el historial).
-function deleteProduct(id) {
-  if (countPromotionProductsForProductStmt.get(id).total > 0) throw new Error('PRODUCT_IN_USE');
+function deleteProduct(id: number): void {
+  if ((countPromotionProductsForProductStmt.get(id) as unknown as { total: number }).total > 0) throw new Error('PRODUCT_IN_USE');
   const info = deleteProductStmt.run(id);
   if (info.changes === 0) throw new Error('PRODUCT_NOT_FOUND');
 }
@@ -763,25 +963,38 @@ const upsertUserProfileValueStmt = db.prepare(
    ON CONFLICT(user_id, field_id) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
 );
 
-function createProfileField({ key, label, type, required }) {
+function createProfileField({
+  key,
+  label,
+  type,
+  required,
+}: {
+  key: string;
+  label: string;
+  type?: string;
+  required?: boolean;
+}): ProfileField {
   const info = insertProfileFieldStmt.run(key, label, type || 'text', required ? 1 : 0);
-  return getProfileFieldByIdStmt.get(info.lastInsertRowid);
+  return getProfileFieldByIdStmt.get(info.lastInsertRowid) as unknown as ProfileField;
 }
 
-function getProfileFieldByKey(key) {
-  return getProfileFieldByKeyStmt.get(key);
+function getProfileFieldByKey(key: string): ProfileField | undefined {
+  return getProfileFieldByKeyStmt.get(key) as unknown as ProfileField | undefined;
 }
 
-function listActiveProfileFields() {
-  return listActiveProfileFieldsStmt.all();
+function listActiveProfileFields(): ProfileField[] {
+  return listActiveProfileFieldsStmt.all() as unknown as ProfileField[];
 }
 
-function adminListProfileFields() {
-  return adminListProfileFieldsStmt.all();
+function adminListProfileFields(): ProfileField[] {
+  return adminListProfileFieldsStmt.all() as unknown as ProfileField[];
 }
 
-function updateProfileField(id, { label, type, required, active }) {
-  const existing = getProfileFieldByIdStmt.get(id);
+function updateProfileField(
+  id: number,
+  { label, type, required, active }: { label?: string | null; type?: string | null; required?: boolean; active?: boolean }
+): ProfileField {
+  const existing = getProfileFieldByIdStmt.get(id) as unknown as ProfileField | undefined;
   if (!existing) throw new Error('PROFILE_FIELD_NOT_FOUND');
   updateProfileFieldStmt.run(
     label != null && label !== '' ? label : existing.label,
@@ -790,27 +1003,27 @@ function updateProfileField(id, { label, type, required, active }) {
     active !== undefined ? (active ? 1 : 0) : existing.active,
     id
   );
-  return getProfileFieldByIdStmt.get(id);
+  return getProfileFieldByIdStmt.get(id) as unknown as ProfileField;
 }
 
 // Borrado real solo si nadie llenó ese campo todavía; si ya hay datos,
 // desactivarlo en vez de borrarlo para no perder lo ya recolectado.
-function deleteProfileField(id) {
-  if (countValuesForFieldStmt.get(id).total > 0) throw new Error('PROFILE_FIELD_IN_USE');
+function deleteProfileField(id: number): void {
+  if ((countValuesForFieldStmt.get(id) as unknown as { total: number }).total > 0) throw new Error('PROFILE_FIELD_IN_USE');
   const info = deleteProfileFieldStmt.run(id);
   if (info.changes === 0) throw new Error('PROFILE_FIELD_NOT_FOUND');
 }
 
 // Todos los campos activos con el valor del usuario (null si aún no lo llenó).
-function getUserProfileValues(userId) {
-  return getUserProfileValuesStmt.all(userId);
+function getUserProfileValues(userId: number): UserProfileValueRow[] {
+  return getUserProfileValuesStmt.all(userId) as unknown as UserProfileValueRow[];
 }
 
-function getMissingRequiredFields(userId) {
+function getMissingRequiredFields(userId: number): UserProfileValueRow[] {
   return getUserProfileValues(userId).filter((f) => f.required && (f.value === null || f.value === undefined));
 }
 
-function setUserProfileValues(userId, valuesByFieldId) {
+function setUserProfileValues(userId: number, valuesByFieldId: Record<string, unknown>): void {
   for (const [fieldId, value] of Object.entries(valuesByFieldId)) {
     if (value === undefined || value === null || value === '') continue;
     upsertUserProfileValueStmt.run(userId, Number(fieldId), String(value));
@@ -875,28 +1088,26 @@ const insertPromotionRedemptionStmt = db.prepare(
   'INSERT INTO promotion_redemptions (promotion_code_id, user_id) VALUES (?, ?)'
 );
 
-function generatePublicationCode(promotionId) {
+function generatePublicationCode(promotionId: number | bigint): string {
   return `PROMO-${String(promotionId).padStart(4, '0')}`;
 }
 
 const setPromotionPublicationCodeStmt = db.prepare('UPDATE promotions SET publication_code = ? WHERE id = ?');
 
 // Uso interno/admin: incluye los códigos de canje (uso interno del staff).
-function hydratePromotion(promotion) {
-  if (!promotion) return promotion;
+function hydratePromotion(promotion: Promotion): PromotionHydrated {
   return {
     ...promotion,
-    products: listPromotionProductsStmt.all(promotion.id),
-    codes: listPromotionCodesStmt.all(promotion.id),
+    products: listPromotionProductsStmt.all(promotion.id) as unknown as Product[],
+    codes: listPromotionCodesStmt.all(promotion.id) as unknown as PromotionCode[],
   };
 }
 
 // Uso público (cliente): NO expone los códigos de canje — el cliente debe
 // obtenerlos por el canal donde se distribuya la promo (flyer, redes, etc.)
 // y canjearlos a mano; listarlos aquí los filtraría a cualquiera con sesión.
-function hydratePromotionPublic(promotion) {
-  if (!promotion) return promotion;
-  return { ...promotion, products: listPromotionProductsStmt.all(promotion.id) };
+function hydratePromotionPublic(promotion: Promotion): PromotionHydratedPublic {
+  return { ...promotion, products: listPromotionProductsStmt.all(promotion.id) as unknown as Product[] };
 }
 
 const listActivePromotionTitlesStmt = db.prepare('SELECT * FROM promotions WHERE active = 1');
@@ -908,33 +1119,53 @@ const listActivePromotionTitlesStmt = db.prepare('SELECT * FROM promotions WHERE
 // La comparación se hace en JS (no con LOWER() de SQLite) porque LOWER()
 // solo pliega mayúsculas ASCII — "FRAPPÉS" no lo reconocería igual a
 // "frappés" si se comparara dentro de la consulta.
-function findActivePromotionByTitle(title) {
+function findActivePromotionByTitle(title: string): Promotion | undefined {
   const normalized = String(title || '').trim().toLowerCase();
   if (!normalized) return undefined;
-  return listActivePromotionTitlesStmt.all().find((p) => p.title.trim().toLowerCase() === normalized);
+  return (listActivePromotionTitlesStmt.all() as unknown as Promotion[]).find((p) => p.title.trim().toLowerCase() === normalized);
 }
 
-function createPromotion({ title, body, photoUrl, startsAt, endsAt, productIds = [] }) {
+function createPromotion({
+  title,
+  body,
+  photoUrl,
+  startsAt,
+  endsAt,
+  productIds = [],
+}: {
+  title: string;
+  body: string;
+  photoUrl?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  productIds?: number[];
+}): PromotionHydrated {
   const info = insertPromotionStmt.run(title, body, photoUrl || null, startsAt || null, endsAt || null, null);
   const id = info.lastInsertRowid;
   setPromotionPublicationCodeStmt.run(generatePublicationCode(id), id);
   for (const productId of productIds) {
     insertPromotionProductStmt.run(id, productId);
   }
-  return hydratePromotion(getPromotionByIdStmt.get(id));
+  return hydratePromotion(getPromotionByIdStmt.get(id) as unknown as Promotion);
 }
 
-function addPromotionCode(promotionId, { code, label, maxUses }) {
+function addPromotionCode(
+  promotionId: number,
+  { code, label, maxUses }: { code?: string | null; label?: string | null; maxUses?: number | string | null }
+): PromotionHydrated {
   const cleanCode = String(code || '').trim().toUpperCase() || randomCode(8);
   insertPromotionCodeStmt.run(promotionId, cleanCode, label || null, maxUses ? Number(maxUses) : null);
-  return hydratePromotion(getPromotionByIdStmt.get(promotionId));
+  return hydratePromotion(getPromotionByIdStmt.get(promotionId) as unknown as Promotion);
 }
 
-function redeemPromotionCode(code, userId) {
-  const promoCode = getPromotionCodeByCodeStmt.get(String(code || '').trim().toUpperCase());
+function redeemPromotionCode(
+  code: string,
+  userId: number
+): { promotion: PromotionHydratedPublic; code: { label: string | null; usesRemaining: number | null } } {
+  const promoCode = getPromotionCodeByCodeStmt.get(String(code || '').trim().toUpperCase()) as unknown as PromotionCode | undefined;
   if (!promoCode) throw new Error('CODE_NOT_FOUND');
 
-  const promotion = getPromotionByIdStmt.get(promoCode.promotion_id);
+  const promotion = getPromotionByIdStmt.get(promoCode.promotion_id) as unknown as Promotion | undefined;
   if (!promotion || !promotion.active) throw new Error('PROMOTION_INACTIVE');
   const now = new Date();
   if (promotion.starts_at && new Date(promotion.starts_at) > now) throw new Error('PROMOTION_NOT_STARTED');
@@ -951,14 +1182,14 @@ function redeemPromotionCode(code, userId) {
   };
 }
 
-function listActivePromotions() {
-  return listActivePromotionsRawStmt.all().map(hydratePromotionPublic);
+function listActivePromotions(): PromotionHydratedPublic[] {
+  return (listActivePromotionsRawStmt.all() as unknown as Promotion[]).map(hydratePromotionPublic);
 }
 
 // Trae productos/códigos de TODAS las promociones de la página en dos
 // consultas (en vez de dos por fila) — evita el N+1 al listar promociones.
-function productsByPromotionId(promotionIds) {
-  const map = new Map();
+function productsByPromotionId(promotionIds: (number | bigint)[]): Map<number, Product[]> {
+  const map = new Map<number, Product[]>();
   if (promotionIds.length === 0) return map;
   const placeholders = promotionIds.map(() => '?').join(',');
   const rows = db.prepare(
@@ -966,32 +1197,32 @@ function productsByPromotionId(promotionIds) {
      JOIN products pr ON pr.id = pp.product_id
      WHERE pp.promotion_id IN (${placeholders})
      ORDER BY pr.name`
-  ).all(...promotionIds);
+  ).all(...promotionIds) as unknown as (Product & { promotion_id: number })[];
   for (const { promotion_id, ...product } of rows) {
     if (!map.has(promotion_id)) map.set(promotion_id, []);
-    map.get(promotion_id).push(product);
+    map.get(promotion_id)!.push(product);
   }
   return map;
 }
 
-function codesByPromotionId(promotionIds) {
-  const map = new Map();
+function codesByPromotionId(promotionIds: (number | bigint)[]): Map<number, PromotionCode[]> {
+  const map = new Map<number, PromotionCode[]>();
   if (promotionIds.length === 0) return map;
   const placeholders = promotionIds.map(() => '?').join(',');
   const rows = db.prepare(
     `SELECT * FROM promotion_codes WHERE promotion_id IN (${placeholders}) ORDER BY id`
-  ).all(...promotionIds);
+  ).all(...promotionIds) as unknown as PromotionCode[];
   for (const row of rows) {
     if (!map.has(row.promotion_id)) map.set(row.promotion_id, []);
-    map.get(row.promotion_id).push(row);
+    map.get(row.promotion_id)!.push(row);
   }
   return map;
 }
 
 // Cuántos clientes DISTINTOS canjearon algún código de cada promoción de la
 // página, en una sola consulta batch (igual que products/codesByPromotionId).
-function redeemedCountByPromotionId(promotionIds) {
-  const map = new Map();
+function redeemedCountByPromotionId(promotionIds: (number | bigint)[]): Map<number, number> {
+  const map = new Map<number, number>();
   if (promotionIds.length === 0) return map;
   const placeholders = promotionIds.map(() => '?').join(',');
   const rows = db.prepare(
@@ -1000,7 +1231,7 @@ function redeemedCountByPromotionId(promotionIds) {
      JOIN promotion_codes pc ON pc.id = pr.promotion_code_id
      WHERE pc.promotion_id IN (${placeholders})
      GROUP BY pc.promotion_id`
-  ).all(...promotionIds);
+  ).all(...promotionIds) as unknown as { promotion_id: number; redeemed_count: number }[];
   for (const row of rows) map.set(row.promotion_id, row.redeemed_count);
   return map;
 }
@@ -1014,11 +1245,19 @@ const getPromotionRedeemersStmt = db.prepare(
    ORDER BY pr.created_at DESC`
 );
 
+export interface PromotionRedeemerRow {
+  user_id: number;
+  name: string;
+  email: string;
+  code: string;
+  redeemed_at: string;
+}
+
 // Quiénes canjearon esta promoción — para el admin, "quiénes fueron los
 // elegidos". Los que NO canjearon se obtienen restando esta lista del
 // total de clientes (adminPromotionsSummary / adminListUsers).
-function getPromotionRedeemers(promotionId) {
-  return getPromotionRedeemersStmt.all(promotionId);
+function getPromotionRedeemers(promotionId: number): PromotionRedeemerRow[] {
+  return getPromotionRedeemersStmt.all(promotionId) as unknown as PromotionRedeemerRow[];
 }
 
 const nonRedeemersBaseStmt = db.prepare(
@@ -1060,23 +1299,30 @@ const nonRedeemersSearchCountStmt = db.prepare(
    ) AND (u.name LIKE ? OR u.email LIKE ?)`
 );
 
+export interface NonRedeemerRow {
+  user_id: number;
+  name: string;
+  email: string;
+  created_at: string;
+}
+
 // Quiénes NO canjearon ningún código de esta promoción — el complemento de
 // getPromotionRedeemers, paginado y con búsqueda por nombre/correo para no
 // tener que traer a los mil clientes de un jalón.
-function getPromotionNonRedeemers(promotionId, { limit = 20, page = 1, q } = {}) {
+function getPromotionNonRedeemers(promotionId: number, { limit = 20, page = 1, q }: PaginationParams = {}): PaginatedResult<NonRedeemerRow> {
   const p = paginate({ limit, page });
   if (!q) {
     return {
-      items: nonRedeemersBaseStmt.all(promotionId, p.limit, p.offset),
-      total: nonRedeemersBaseCountStmt.get(promotionId).total,
+      items: nonRedeemersBaseStmt.all(promotionId, p.limit, p.offset) as unknown as NonRedeemerRow[],
+      total: (nonRedeemersBaseCountStmt.get(promotionId) as unknown as { total: number }).total,
       page: p.page,
       limit: p.limit,
     };
   }
   const search = `%${q}%`;
   return {
-    items: nonRedeemersSearchStmt.all(promotionId, search, search, p.limit, p.offset),
-    total: nonRedeemersSearchCountStmt.get(promotionId, search, search).total,
+    items: nonRedeemersSearchStmt.all(promotionId, search, search, p.limit, p.offset) as unknown as NonRedeemerRow[],
+    total: (nonRedeemersSearchCountStmt.get(promotionId, search, search) as unknown as { total: number }).total,
     page: p.page,
     limit: p.limit,
   };
@@ -1085,13 +1331,21 @@ function getPromotionNonRedeemers(promotionId, { limit = 20, page = 1, q } = {})
 const activePromotionsCountStmt = db.prepare('SELECT COUNT(*) AS total FROM promotions WHERE active = 1');
 const distinctPromoRedeemersStmt = db.prepare('SELECT COUNT(DISTINCT user_id) AS total FROM promotion_redemptions');
 
+export interface PromotionsSummary {
+  totalActivePromotions: number;
+  totalUsers: number;
+  totalRedeemers: number;
+  totalNeverRedeemed: number;
+  redemptionRatePct: number;
+}
+
 // Resumen general para el tope del dashboard de promociones: cuántas
 // promociones activas hay, a cuántos clientes se les podría llegar, y de
 // esos cuántos ya canjearon alguna promoción alguna vez.
-function adminPromotionsSummary() {
-  const totalActivePromotions = activePromotionsCountStmt.get().total;
-  const totalUsers = adminUsersCountStmt.get().total;
-  const totalRedeemers = distinctPromoRedeemersStmt.get().total;
+function adminPromotionsSummary(): PromotionsSummary {
+  const totalActivePromotions = (activePromotionsCountStmt.get() as unknown as { total: number }).total;
+  const totalUsers = (adminUsersCountStmt.get() as unknown as { total: number }).total;
+  const totalRedeemers = (distinctPromoRedeemersStmt.get() as unknown as { total: number }).total;
   return {
     totalActivePromotions,
     totalUsers,
@@ -1101,9 +1355,13 @@ function adminPromotionsSummary() {
   };
 }
 
-function adminListPromotions({ limit = 20, page = 1 } = {}) {
+export interface AdminPromotionRow extends PromotionHydrated {
+  redeemedCount: number;
+}
+
+function adminListPromotions({ limit = 20, page = 1 }: PaginationParams = {}): PaginatedResult<AdminPromotionRow> {
   const p = paginate({ limit, page });
-  const promotions = adminListPromotionsStmt.all(p.limit, p.offset);
+  const promotions = adminListPromotionsStmt.all(p.limit, p.offset) as unknown as Promotion[];
   const ids = promotions.map((promo) => promo.id);
   const productsMap = productsByPromotionId(ids);
   const codesMap = codesByPromotionId(ids);
@@ -1115,27 +1373,27 @@ function adminListPromotions({ limit = 20, page = 1 } = {}) {
       codes: codesMap.get(promo.id) || [],
       redeemedCount: redeemedMap.get(promo.id) || 0,
     })),
-    total: adminPromotionsCountStmt.get().total,
+    total: (adminPromotionsCountStmt.get() as unknown as { total: number }).total,
     page: p.page,
     limit: p.limit,
   };
 }
 
-function deactivatePromotion(id) {
+function deactivatePromotion(id: number): void {
   deactivatePromotionStmt.run(id);
 }
 
-function markPromotionPushed(id, count) {
+function markPromotionPushed(id: number, count: number): void {
   markPromotionPushedStmt.run(count, id);
 }
 
 // Promociones activas, con fecha de inicio ya cumplida (o sin fecha = ya
 // mismo) que todavía no se activaron — para el scheduler.
-function listPromotionsReadyToActivate() {
-  return listPromotionsReadyToActivateStmt.all().map(hydratePromotion);
+function listPromotionsReadyToActivate(): PromotionHydrated[] {
+  return (listPromotionsReadyToActivateStmt.all() as unknown as Promotion[]).map(hydratePromotion);
 }
 
-function markPromotionActivated(id) {
+function markPromotionActivated(id: number): void {
   markPromotionActivatedStmt.run(id);
 }
 
@@ -1151,8 +1409,25 @@ const countPromotionRedemptionsStmt = db.prepare(
 const deletePromotionCodesStmt = db.prepare('DELETE FROM promotion_codes WHERE promotion_id = ?');
 const deletePromotionStmt = db.prepare('DELETE FROM promotions WHERE id = ?');
 
-function updatePromotion(id, { title, body, photoUrl, startsAt, endsAt, productIds }) {
-  const existing = getPromotionByIdStmt.get(id);
+function updatePromotion(
+  id: number,
+  {
+    title,
+    body,
+    photoUrl,
+    startsAt,
+    endsAt,
+    productIds,
+  }: {
+    title?: string | null;
+    body?: string | null;
+    photoUrl?: string | null;
+    startsAt?: string | null;
+    endsAt?: string | null;
+    productIds?: number[];
+  }
+): PromotionHydrated {
+  const existing = getPromotionByIdStmt.get(id) as unknown as Promotion | undefined;
   if (!existing) throw new Error('PROMOTION_NOT_FOUND');
   updatePromotionStmt.run(
     title != null && title !== '' ? title : existing.title,
@@ -1166,13 +1441,13 @@ function updatePromotion(id, { title, body, photoUrl, startsAt, endsAt, productI
     deletePromotionProductsStmt.run(id);
     for (const productId of productIds) insertPromotionProductStmt.run(id, productId);
   }
-  return hydratePromotion(getPromotionByIdStmt.get(id));
+  return hydratePromotion(getPromotionByIdStmt.get(id) as unknown as Promotion);
 }
 
 // Borrado real solo si nadie canjeó ningún código de esta promoción (si no,
 // se pierde el historial de canjes); si ya se usó, hay que desactivarla.
-function deletePromotion(id) {
-  if (countPromotionRedemptionsStmt.get(id).total > 0) throw new Error('PROMOTION_HAS_REDEMPTIONS');
+function deletePromotion(id: number): void {
+  if ((countPromotionRedemptionsStmt.get(id) as unknown as { total: number }).total > 0) throw new Error('PROMOTION_HAS_REDEMPTIONS');
   deletePromotionProductsStmt.run(id);
   deletePromotionCodesStmt.run(id);
   const info = deletePromotionStmt.run(id);
@@ -1190,27 +1465,43 @@ const listAllPushSubscriptionsStmt = db.prepare('SELECT * FROM push_subscription
 const listPushSubscriptionsByUserStmt = db.prepare('SELECT * FROM push_subscriptions WHERE user_id = ?');
 const countPushSubscriptionsStmt = db.prepare('SELECT COUNT(*) AS total FROM push_subscriptions');
 
-function addPushSubscription(userId, { endpoint, p256dh, auth }) {
+function addPushSubscription(userId: number, { endpoint, p256dh, auth }: { endpoint: string; p256dh: string; auth: string }): void {
   upsertPushSubscriptionStmt.run(userId, endpoint, p256dh, auth);
 }
 
-function removePushSubscription(endpoint) {
+function removePushSubscription(endpoint: string): void {
   deletePushSubscriptionStmt.run(endpoint);
 }
 
-function listAllPushSubscriptions() {
-  return listAllPushSubscriptionsStmt.all();
+function listAllPushSubscriptions(): PushSubscriptionDbRow[] {
+  return listAllPushSubscriptionsStmt.all() as unknown as PushSubscriptionDbRow[];
 }
 
-function listPushSubscriptionsByUser(userId) {
-  return listPushSubscriptionsByUserStmt.all(userId);
+function listPushSubscriptionsByUser(userId: number): PushSubscriptionDbRow[] {
+  return listPushSubscriptionsByUserStmt.all(userId) as unknown as PushSubscriptionDbRow[];
 }
 
-function countPushSubscriptions() {
-  return countPushSubscriptionsStmt.get().total;
+function countPushSubscriptions(): number {
+  return (countPushSubscriptionsStmt.get() as unknown as { total: number }).total;
 }
 
 // ───────────────────────── panel administrador ─────────────────────────
+
+export interface AdminUserRow {
+  id: number;
+  name: string;
+  email: string;
+  avatar_url: string | null;
+  totp_enabled: number;
+  created_at: string;
+  dni: string | null;
+  telefono: string | null;
+  referred_by: number | null;
+  family_group_id: number | null;
+  puntos: number;
+  total_gastado: number;
+  num_compras: number;
+}
 
 const adminUsersStmt = db.prepare(
   `SELECT u.id, u.name, u.email, u.avatar_url, u.totp_enabled, u.created_at,
@@ -1238,23 +1529,35 @@ const adminUsersSearchStmt = db.prepare(`
 `);
 const adminUsersSearchCountStmt = db.prepare('SELECT COUNT(*) AS total FROM users WHERE name LIKE ? OR email LIKE ?');
 
-function adminListUsers({ limit = 20, page = 1, q } = {}) {
+function adminListUsers({ limit = 20, page = 1, q }: PaginationParams = {}): PaginatedResult<AdminUserRow> {
   const p = paginate({ limit, page });
   if (!q) {
     return {
-      items: adminUsersStmt.all(p.limit, p.offset),
-      total: adminUsersCountStmt.get().total,
+      items: adminUsersStmt.all(p.limit, p.offset) as unknown as AdminUserRow[],
+      total: (adminUsersCountStmt.get() as unknown as { total: number }).total,
       page: p.page,
       limit: p.limit,
     };
   }
   const search = `%${q}%`;
   return {
-    items: adminUsersSearchStmt.all(search, search, p.limit, p.offset),
-    total: adminUsersSearchCountStmt.get(search, search).total,
+    items: adminUsersSearchStmt.all(search, search, p.limit, p.offset) as unknown as AdminUserRow[],
+    total: (adminUsersSearchCountStmt.get(search, search) as unknown as { total: number }).total,
     page: p.page,
     limit: p.limit,
   };
+}
+
+export interface AdminReferralRow {
+  id: number;
+  name: string;
+  email: string;
+  fecha_registro: string;
+  referrer_id: number;
+  referrer_name: string;
+  referrer_email: string;
+  num_compras: number;
+  puntos: number;
 }
 
 const adminReferralsStmt = db.prepare(
@@ -1284,23 +1587,34 @@ const adminReferralsSearchCountStmt = db.prepare(
    WHERE u.name LIKE ? OR u.email LIKE ? OR r.name LIKE ? OR r.email LIKE ?`
 );
 
-function adminListReferrals({ limit = 20, page = 1, q } = {}) {
+function adminListReferrals({ limit = 20, page = 1, q }: PaginationParams = {}): PaginatedResult<AdminReferralRow> {
   const p = paginate({ limit, page });
   if (!q) {
     return {
-      items: adminReferralsStmt.all(p.limit, p.offset),
-      total: adminReferralsCountStmt.get().total,
+      items: adminReferralsStmt.all(p.limit, p.offset) as unknown as AdminReferralRow[],
+      total: (adminReferralsCountStmt.get() as unknown as { total: number }).total,
       page: p.page,
       limit: p.limit,
     };
   }
   const search = `%${q}%`;
   return {
-    items: adminReferralsSearchStmt.all(search, search, search, search, p.limit, p.offset),
-    total: adminReferralsSearchCountStmt.get(search, search, search, search).total,
+    items: adminReferralsSearchStmt.all(search, search, search, search, p.limit, p.offset) as unknown as AdminReferralRow[],
+    total: (adminReferralsSearchCountStmt.get(search, search, search, search) as unknown as { total: number }).total,
     page: p.page,
     limit: p.limit,
   };
+}
+
+export interface AdminFamilyGroupRow {
+  id: number;
+  name: string;
+  invite_code: string;
+  created_at: string;
+  owner_name: string;
+  owner_email: string;
+  num_miembros: number;
+  members: FamilyMember[];
 }
 
 const adminFamilyGroupsStmt = db.prepare(
@@ -1315,31 +1629,41 @@ const adminFamilyGroupsCountStmt = db.prepare('SELECT COUNT(*) AS total FROM fam
 
 // Trae los miembros de TODOS los grupos de la página en una sola consulta
 // (en vez de una consulta por grupo) — evita el N+1 al listar grupos.
-function membersByGroupId(groupIds) {
-  const membersByGroup = new Map();
+function membersByGroupId(groupIds: number[]): Map<number, FamilyMember[]> {
+  const membersByGroup = new Map<number, FamilyMember[]>();
   if (groupIds.length === 0) return membersByGroup;
   const placeholders = groupIds.map(() => '?').join(',');
   const rows = db.prepare(
     `SELECT id, name, email, avatar_url, family_group_id FROM users WHERE family_group_id IN (${placeholders})`
-  ).all(...groupIds);
+  ).all(...groupIds) as unknown as (FamilyMember & { family_group_id: number })[];
   for (const row of rows) {
     if (!membersByGroup.has(row.family_group_id)) membersByGroup.set(row.family_group_id, []);
-    membersByGroup.get(row.family_group_id).push(row);
+    membersByGroup.get(row.family_group_id)!.push(row);
   }
   return membersByGroup;
 }
 
-function adminListFamilyGroups({ limit = 20, page = 1 } = {}) {
+function adminListFamilyGroups({ limit = 20, page = 1 }: PaginationParams = {}): PaginatedResult<AdminFamilyGroupRow> {
   const p = paginate({ limit, page });
-  const groups = adminFamilyGroupsStmt.all(p.limit, p.offset);
+  const groups = adminFamilyGroupsStmt.all(p.limit, p.offset) as unknown as Omit<AdminFamilyGroupRow, 'members'>[];
   const membersByGroup = membersByGroupId(groups.map((g) => g.id));
   const items = groups.map((g) => ({ ...g, members: membersByGroup.get(g.id) || [] }));
   return {
     items,
-    total: adminFamilyGroupsCountStmt.get().total,
+    total: (adminFamilyGroupsCountStmt.get() as unknown as { total: number }).total,
     page: p.page,
     limit: p.limit,
   };
+}
+
+export interface AdminPurchaseRow {
+  id: number;
+  monto: number;
+  producto: string | null;
+  puntos: number;
+  created_at: string;
+  user_name: string;
+  user_email: string;
 }
 
 const adminPurchasesStmt = db.prepare(
@@ -1363,26 +1687,40 @@ const adminPurchasesSearchCountStmt = db.prepare(
    WHERE u.name LIKE ? OR u.email LIKE ? OR p.producto LIKE ?`
 );
 
-function adminListPurchases({ limit = 20, page = 1, q } = {}) {
+function adminListPurchases({ limit = 20, page = 1, q }: PaginationParams = {}): PaginatedResult<AdminPurchaseRow> {
   const p = paginate({ limit, page });
   if (!q) {
     return {
-      items: adminPurchasesStmt.all(p.limit, p.offset),
-      total: adminPurchasesCountStmt.get().total,
+      items: adminPurchasesStmt.all(p.limit, p.offset) as unknown as AdminPurchaseRow[],
+      total: (adminPurchasesCountStmt.get() as unknown as { total: number }).total,
       page: p.page,
       limit: p.limit,
     };
   }
   const search = `%${q}%`;
   return {
-    items: adminPurchasesSearchStmt.all(search, search, search, p.limit, p.offset),
-    total: adminPurchasesSearchCountStmt.get(search, search, search).total,
+    items: adminPurchasesSearchStmt.all(search, search, search, p.limit, p.offset) as unknown as AdminPurchaseRow[],
+    total: (adminPurchasesSearchCountStmt.get(search, search, search) as unknown as { total: number }).total,
     page: p.page,
     limit: p.limit,
   };
 }
 
 // ───────────────────────── reportes: clientes ─────────────────────────
+
+interface TopCustomerRawRow {
+  id: number;
+  name: string;
+  email: string;
+  num_compras: number;
+  total_gastado: number;
+  primera_compra: string;
+  ultima_compra: string;
+}
+
+export interface TopCustomerRow extends TopCustomerRawRow {
+  comprasPorSemana: number | null;
+}
 
 const topCustomersBaseStmt = db.prepare(`
   SELECT u.id, u.name, u.email,
@@ -1408,28 +1746,42 @@ const topCustomersSearchStmt = db.prepare(`
 
 // Compras por semana entre la primera y la última compra — null si solo
 // tiene una compra (no hay ventana de tiempo real para medir frecuencia).
-function withPurchaseFrequency(row) {
+function withPurchaseFrequency(row: TopCustomerRawRow): TopCustomerRow {
   if (row.num_compras < 2) return { ...row, comprasPorSemana: null };
-  const days = (sqliteUtcToDate(row.ultima_compra) - sqliteUtcToDate(row.primera_compra)) / 86400_000;
+  const days = (sqliteUtcToDate(row.ultima_compra).getTime() - sqliteUtcToDate(row.primera_compra).getTime()) / 86400_000;
   const weeks = Math.max(days / 7, 1);
   return { ...row, comprasPorSemana: Math.round((row.num_compras / weeks) * 100) / 100 };
 }
 
 // Filtro personalizable: buscar por nombre/email (q), mínimo de compras
 // para aparecer en la lista, y ordenar por compras / gasto total / frecuencia.
-function adminTopCustomersByPurchases({ limit = 20, page = 1, q, minCompras = 1, sortBy = 'num_compras' } = {}) {
+function adminTopCustomersByPurchases({
+  limit = 20,
+  page = 1,
+  q,
+  minCompras = 1,
+  sortBy = 'num_compras',
+}: PaginationParams & { minCompras?: number | string; sortBy?: string } = {}): PaginatedResult<TopCustomerRow> {
   const p = paginate({ limit, page });
-  const rows = q
+  const rows = (q
     ? topCustomersSearchStmt.all(`%${q}%`, `%${q}%`)
-    : topCustomersBaseStmt.all();
+    : topCustomersBaseStmt.all()) as unknown as TopCustomerRawRow[];
 
   const min = Math.max(Number(minCompras) || 1, 1);
   const items = rows.filter((r) => r.num_compras >= min).map(withPurchaseFrequency);
 
-  const sortKey = ['num_compras', 'total_gastado', 'comprasPorSemana'].includes(sortBy) ? sortBy : 'num_compras';
-  items.sort((a, b) => (b[sortKey] ?? 0) - (a[sortKey] ?? 0));
+  const sortKey = (['num_compras', 'total_gastado', 'comprasPorSemana'].includes(sortBy) ? sortBy : 'num_compras') as unknown as keyof TopCustomerRow;
+  items.sort((a, b) => (Number(b[sortKey]) || 0) - (Number(a[sortKey]) || 0));
 
   return { items: items.slice(p.offset, p.offset + p.limit), total: items.length, page: p.page, limit: p.limit };
+}
+
+export interface RecurringPromoCustomerRow {
+  id: number;
+  name: string;
+  email: string;
+  promos_canjeadas: number;
+  total_canjes: number;
 }
 
 const recurringPromoCustomersStmt = db.prepare(`
@@ -1454,11 +1806,11 @@ const recurringPromoCustomersSearchStmt = db.prepare(`
 
 // Clientes recurrentes: los que canjearon más promociones DISTINTAS, no
 // solo más veces la misma.
-function adminRecurringPromoCustomers({ limit = 20, page = 1, q } = {}) {
+function adminRecurringPromoCustomers({ limit = 20, page = 1, q }: PaginationParams = {}): PaginatedResult<RecurringPromoCustomerRow> {
   const p = paginate({ limit, page });
-  const rows = q
+  const rows = (q
     ? recurringPromoCustomersSearchStmt.all(`%${q}%`, `%${q}%`)
-    : recurringPromoCustomersStmt.all();
+    : recurringPromoCustomersStmt.all()) as unknown as RecurringPromoCustomerRow[];
   const sorted = [...rows].sort(
     (a, b) => b.promos_canjeadas - a.promos_canjeadas || b.total_canjes - a.total_canjes
   );
@@ -1476,26 +1828,31 @@ const trafficByWeekdayStmt = db.prepare(
 
 const WEEKDAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-function adminAllUsers() {
-  return adminUsersStmt.all(-1, 0);
+function adminAllUsers(): AdminUserRow[] {
+  return adminUsersStmt.all(-1, 0) as unknown as AdminUserRow[];
 }
 
-function adminAllPurchases() {
-  return adminPurchasesStmt.all(-1, 0);
+function adminAllPurchases(): AdminPurchaseRow[] {
+  return adminPurchasesStmt.all(-1, 0) as unknown as AdminPurchaseRow[];
 }
 
-function adminAllReferrals() {
-  return adminReferralsStmt.all(-1, 0);
+function adminAllReferrals(): AdminReferralRow[] {
+  return adminReferralsStmt.all(-1, 0) as unknown as AdminReferralRow[];
 }
 
-function adminTrafficStats() {
-  const byHourRaw = trafficByHourStmt.all();
+export interface TrafficStats {
+  byHour: { hora: number; total: number; monto: number }[];
+  byWeekday: { dia: number; nombre: string; total: number; monto: number }[];
+}
+
+function adminTrafficStats(): TrafficStats {
+  const byHourRaw = trafficByHourStmt.all() as unknown as { hora: number; total: number; monto: number }[];
   const byHour = Array.from({ length: 24 }, (_, hora) => {
     const row = byHourRaw.find((r) => r.hora === hora);
     return { hora, total: row ? row.total : 0, monto: row ? row.monto : 0 };
   });
 
-  const byWeekdayRaw = trafficByWeekdayStmt.all();
+  const byWeekdayRaw = trafficByWeekdayStmt.all() as unknown as { dia: number; total: number; monto: number }[];
   const byWeekday = WEEKDAY_NAMES.map((nombre, dia) => {
     const row = byWeekdayRaw.find((r) => r.dia === dia);
     return { dia, nombre, total: row ? row.total : 0, monto: row ? row.monto : 0 };

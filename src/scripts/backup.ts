@@ -5,14 +5,14 @@
 // una escritura en curso.
 //
 // Uso:
-//   node scripts/backup.js [directorio-de-salida]
-//   DB_FILE=/ruta/a/otra.sqlite node scripts/backup.js
-const path = require('node:path');
-const fs = require('node:fs');
-const { DatabaseSync } = require('node:sqlite');
+//   node dist/scripts/backup.js [directorio-de-salida]
+//   DB_FILE=/ruta/a/otra.sqlite node dist/scripts/backup.js
+import path from 'node:path';
+import fs from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 
-const SOURCE = process.env.DB_FILE || path.join(__dirname, '..', 'data', 'suscripciones.sqlite');
-const OUT_DIR = process.argv[2] || path.join(__dirname, '..', 'data', 'backups');
+const SOURCE = process.env.DB_FILE || path.join(__dirname, '..', '..', 'data', 'suscripciones.sqlite');
+const OUT_DIR = process.argv[2] || path.join(__dirname, '..', '..', 'data', 'backups');
 
 if (!fs.existsSync(SOURCE)) {
   console.error(`No se encontró la base de datos en ${SOURCE}`);

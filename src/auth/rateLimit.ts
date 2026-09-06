@@ -2,9 +2,19 @@
 // Es de un solo proceso: alcanza para esta app (SQLite ya es de un solo
 // proceso); si se corre con varias réplicas detrás de un balanceador, cada
 // una lleva su propio conteo — no es un límite global estricto en ese caso.
-const buckets = new Map();
 
-function checkRateLimit(key, { max, windowMs }) {
+interface Bucket {
+  count: number;
+  resetAt: number;
+}
+
+type RateLimitResult =
+  | { allowed: true }
+  | { allowed: false; retryAfterSeconds: number };
+
+const buckets = new Map<string, Bucket>();
+
+function checkRateLimit(key: string, { max, windowMs }: { max: number; windowMs: number }): RateLimitResult {
   const now = Date.now();
   const entry = buckets.get(key);
 

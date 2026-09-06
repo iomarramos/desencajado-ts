@@ -1,11 +1,11 @@
-const crypto = require('node:crypto');
+import crypto from 'node:crypto';
 
 const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 const STEP_SECONDS = 30;
 const DIGITS = 6;
 const WINDOW = 1; // ± 30s de tolerancia por desfase de reloj
 
-function base32Encode(buffer) {
+function base32Encode(buffer: Buffer): string {
   let bits = 0;
   let value = 0;
   let output = '';
@@ -23,11 +23,11 @@ function base32Encode(buffer) {
   return output;
 }
 
-function base32Decode(str) {
+function base32Decode(str: string): Buffer {
   const clean = String(str || '').toUpperCase().replace(/[^A-Z2-7]/g, '');
   let bits = 0;
   let value = 0;
-  const bytes = [];
+  const bytes: number[] = [];
   for (const char of clean) {
     const idx = BASE32_ALPHABET.indexOf(char);
     if (idx === -1) continue;
@@ -41,11 +41,11 @@ function base32Decode(str) {
   return Buffer.from(bytes);
 }
 
-function generateSecret() {
+function generateSecret(): string {
   return base32Encode(crypto.randomBytes(20));
 }
 
-function hotp(secretBuffer, counter) {
+function hotp(secretBuffer: Buffer, counter: number): number {
   const counterBuffer = Buffer.alloc(8);
   counterBuffer.writeBigUInt64BE(BigInt(counter));
   const hmac = crypto.createHmac('sha1', secretBuffer).update(counterBuffer).digest();
@@ -58,13 +58,13 @@ function hotp(secretBuffer, counter) {
   return code % 10 ** DIGITS;
 }
 
-function generateTOTP(secretBase32, forTimeMs = Date.now()) {
+function generateTOTP(secretBase32: string, forTimeMs: number = Date.now()): string {
   const counter = Math.floor(forTimeMs / 1000 / STEP_SECONDS);
   const code = hotp(base32Decode(secretBase32), counter);
   return String(code).padStart(DIGITS, '0');
 }
 
-function verifyTOTP(secretBase32, token) {
+function verifyTOTP(secretBase32: string, token: unknown): boolean {
   if (!/^\d{6}$/.test(String(token || ''))) return false;
   const now = Date.now();
   for (let errorWindow = -WINDOW; errorWindow <= WINDOW; errorWindow++) {
@@ -74,7 +74,7 @@ function verifyTOTP(secretBase32, token) {
   return false;
 }
 
-function otpauthUrl({ secret, email, issuer = 'DESENCAJADO' }) {
+function otpauthUrl({ secret, email, issuer = 'DESENCAJADO' }: { secret: string; email: string; issuer?: string }): string {
   const label = encodeURIComponent(`${issuer}:${email}`);
   const params = new URLSearchParams({
     secret,

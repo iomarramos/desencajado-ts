@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    name: Sintaxis + tests (Node 22)
+    name: TypeScript + tests (Node 22)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,22 +25,16 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      - name: Verificar sintaxis de todos los .js
-        run: |
-          set -e
-          find . \
-            -name '*.js' \
-            -not -path './node_modules/*' \
-            -not -path './data/*' \
-            -print0 | xargs -0 -n1 node -c
+      - name: Compilar TypeScript (type-check + build a dist/)
+        run: npm run build
 
       - name: Ejecutar tests
-        run: npm test
+        run: node --test dist/test/**/*.test.js
 
       - name: Smoke test del servidor
         run: |
           set -e
-          ADMIN_TOKEN=ci-test-token PORT=3999 node server.js &
+          ADMIN_TOKEN=ci-test-token PORT=3999 node dist/server.js &
           SERVER_PID=$!
           for i in $(seq 1 20); do
             if curl -sf http://localhost:3999/api/subscribe/count > /dev/null; then break; fi

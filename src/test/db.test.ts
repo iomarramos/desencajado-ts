@@ -1,9 +1,9 @@
 // Cada archivo de test corre en su propio proceso con `node --test`, así
 // que fijar DB_FILE aquí antes de requerir '../db' no interfiere con otros
 // archivos de test ni con la base de datos de desarrollo.
-const path = require('node:path');
-const os = require('node:os');
-const fs = require('node:fs');
+import path from 'node:path';
+import os from 'node:os';
+import fs from 'node:fs';
 
 const TMP_DB = path.join(os.tmpdir(), `desencajado-test-db-${process.pid}-${Date.now()}.sqlite`);
 process.env.DB_FILE = TMP_DB;
@@ -17,8 +17,8 @@ process.env.TIER_SILVER_THRESHOLD = '100';
 process.env.TIER_GOLD_THRESHOLD = '300';
 process.env.SPIN_COOLDOWN_HOURS = '24';
 
-const { test, after } = require('node:test');
-const assert = require('node:assert/strict');
+import { test, after } from 'node:test';
+import assert from 'node:assert/strict';
 const db = require('../db');
 
 after(() => {
@@ -28,7 +28,7 @@ after(() => {
 });
 
 let userSeq = 0;
-function makeUser(name) {
+function makeUser(name: string) {
   userSeq += 1;
   return db.upsertGoogleUser({
     googleId: `g${userSeq}`,
@@ -161,7 +161,7 @@ test('promociones: sin fecha o con fecha pasada están listas para activar de in
     startsAt: new Date(Date.now() - 86400000).toISOString().slice(0, 16),
   });
 
-  const listas = db.listPromotionsReadyToActivate().map((p) => p.id);
+  const listas = db.listPromotionsReadyToActivate().map((p: { id: number }) => p.id);
   assert.ok(listas.includes(inmediata.id));
   assert.ok(listas.includes(ayer.id));
 });
@@ -173,16 +173,16 @@ test('promociones: una fecha futura NO está lista para activar hasta que llegue
     startsAt: new Date(Date.now() + 86400000).toISOString().slice(0, 16),
   });
 
-  const listas = db.listPromotionsReadyToActivate().map((p) => p.id);
+  const listas = db.listPromotionsReadyToActivate().map((p: { id: number }) => p.id);
   assert.ok(!listas.includes(manana.id));
 });
 
 test('promociones: markPromotionActivated saca a la promoción de la lista de pendientes', () => {
   const promo = db.createPromotion({ title: 'Sched a activar', body: 'x' });
-  assert.ok(db.listPromotionsReadyToActivate().some((p) => p.id === promo.id));
+  assert.ok(db.listPromotionsReadyToActivate().some((p: { id: number }) => p.id === promo.id));
 
   db.markPromotionActivated(promo.id);
-  assert.ok(!db.listPromotionsReadyToActivate().some((p) => p.id === promo.id));
+  assert.ok(!db.listPromotionsReadyToActivate().some((p: { id: number }) => p.id === promo.id));
 });
 
 // ───────────────────────── puntos / recompensas ─────────────────────────
@@ -330,14 +330,14 @@ test('campos de perfil: un campo obligatorio sin llenar aparece en getMissingReq
   assert.equal(db.getMissingRequiredFields(user.id).length, 0);
 
   const values = db.getUserProfileValues(user.id);
-  assert.equal(values.find((v) => v.id === field.id).value, '2000-01-01');
+  assert.equal(values.find((v: { id: number }) => v.id === field.id).value, '2000-01-01');
 });
 
 test('campos de perfil: un campo opcional nunca bloquea', () => {
   const user = makeUser('Campo opcional');
   db.createProfileField({ key: 'opcional_test', label: 'Opcional', type: 'text', required: false });
   const missing = db.getMissingRequiredFields(user.id);
-  assert.ok(!missing.some((f) => f.field_key === 'opcional_test'));
+  assert.ok(!missing.some((f: { field_key: string }) => f.field_key === 'opcional_test'));
 });
 
 test('campos de perfil: no se puede borrar un campo con valores, sí desactivar', () => {
@@ -349,7 +349,7 @@ test('campos de perfil: no se puede borrar un campo con valores, sí desactivar'
 
   const updated = db.updateProfileField(field.id, { active: false });
   assert.equal(updated.active, 0);
-  assert.ok(!db.listActiveProfileFields().some((f) => f.id === field.id));
+  assert.ok(!db.listActiveProfileFields().some((f: { id: number }) => f.id === field.id));
 });
 
 // ───────────────────────── concurrencia: operaciones atómicas ─────────────────────────
@@ -398,10 +398,10 @@ test('adminListFamilyGroups: cada grupo trae solo sus propios miembros', () => {
   db.joinFamilyGroup(memberB.id, groupB.invite_code);
 
   const items = db.adminListFamilyGroups({ limit: 50 }).items;
-  const a = items.find((g) => g.id === groupA.id);
-  const b = items.find((g) => g.id === groupB.id);
-  assert.deepEqual(a.members.map((m) => m.name).sort(), ['Member batch A', 'Owner batch A'].sort());
-  assert.deepEqual(b.members.map((m) => m.name).sort(), ['Member batch B', 'Owner batch B'].sort());
+  const a = items.find((g: { id: number }) => g.id === groupA.id);
+  const b = items.find((g: { id: number }) => g.id === groupB.id);
+  assert.deepEqual(a.members.map((m: { name: string }) => m.name).sort(), ['Member batch A', 'Owner batch A'].sort());
+  assert.deepEqual(b.members.map((m: { name: string }) => m.name).sort(), ['Member batch B', 'Owner batch B'].sort());
 });
 
 test('adminListPromotions: cada promoción trae solo sus propios códigos', () => {
@@ -412,10 +412,10 @@ test('adminListPromotions: cada promoción trae solo sus propios códigos', () =
   db.addPromotionCode(promoB.id, { code: 'BATCHB2', label: null, maxUses: null });
 
   const items = db.adminListPromotions({ limit: 50 }).items;
-  const a = items.find((p) => p.id === promoA.id);
-  const b = items.find((p) => p.id === promoB.id);
-  assert.deepEqual(a.codes.map((c) => c.code), ['BATCHA']);
-  assert.deepEqual(b.codes.map((c) => c.code).sort(), ['BATCHB1', 'BATCHB2']);
+  const a = items.find((p: { id: number }) => p.id === promoA.id);
+  const b = items.find((p: { id: number }) => p.id === promoB.id);
+  assert.deepEqual(a.codes.map((c: { code: string }) => c.code), ['BATCHA']);
+  assert.deepEqual(b.codes.map((c: { code: string }) => c.code).sort(), ['BATCHB1', 'BATCHB2']);
 });
 
 // ───────────────────────── duplicidad de promociones ─────────────────────────
@@ -461,7 +461,7 @@ test('getPromotionNonRedeemers: excluye a quien canjeó, pagina y busca por nomb
   db.redeemPromotionCode('NOCANJE1', redeemer.id);
 
   const all = db.getPromotionNonRedeemers(promo.id, { limit: 50 });
-  const ids = all.items.map((u) => u.user_id);
+  const ids = all.items.map((u: { user_id: number }) => u.user_id);
   assert.ok(ids.includes(pending1.id));
   assert.ok(ids.includes(pending2.id));
   assert.ok(!ids.includes(redeemer.id));
@@ -484,7 +484,7 @@ test('adminListPromotions: redeemedCount cuenta clientes distintos, no canjes to
   db.redeemPromotionCode('DISTINCT1', a.id);
   db.redeemPromotionCode('DISTINCT2', b.id);
 
-  const item = db.adminListPromotions({ limit: 50 }).items.find((p) => p.id === promo.id);
+  const item = db.adminListPromotions({ limit: 50 }).items.find((p: { id: number }) => p.id === promo.id);
   assert.equal(item.redeemedCount, 2);
 });
 
@@ -497,11 +497,11 @@ test('adminTopCustomersByPurchases: ordena por compras y respeta el mínimo', ()
   db.addPurchase({ userId: ocasional.id, monto: 10, producto: 'x' });
 
   const all = db.adminTopCustomersByPurchases({ limit: 50, minCompras: 1 });
-  const names = all.items.map((c) => c.name);
+  const names = all.items.map((c: { name: string }) => c.name);
   assert.ok(names.indexOf('Top frecuente') < names.indexOf('Top ocasional'));
 
   const filtered = db.adminTopCustomersByPurchases({ limit: 50, minCompras: 2 });
-  assert.ok(!filtered.items.some((c) => c.name === 'Top ocasional'));
+  assert.ok(!filtered.items.some((c: { name: string }) => c.name === 'Top ocasional'));
 });
 
 test('adminRecurringPromoCustomers: cuenta promociones DISTINTAS, no canjes totales', () => {
@@ -513,7 +513,7 @@ test('adminRecurringPromoCustomers: cuenta promociones DISTINTAS, no canjes tota
   db.redeemPromotionCode('RECA', user.id);
   db.redeemPromotionCode('RECB', user.id);
 
-  const item = db.adminRecurringPromoCustomers({ limit: 50 }).items.find((c) => c.id === user.id);
+  const item = db.adminRecurringPromoCustomers({ limit: 50 }).items.find((c: { id: number }) => c.id === user.id);
   assert.equal(item.promos_canjeadas, 2);
   assert.equal(item.total_canjes, 2);
 });

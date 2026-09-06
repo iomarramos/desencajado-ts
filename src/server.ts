@@ -1,7 +1,8 @@
-const http = require('node:http');
-const fs = require('node:fs');
-const path = require('node:path');
-const crypto = require('node:crypto');
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import type { PushSubscriptionDbRow } from './db';
 const {
   addSubscriber, dniExists, getCount, listSubscribers,
   upsertGoogleUser, getUserById, getUserByEmail, getUserByReferralCode, setReferredBy,
@@ -29,8 +30,11 @@ const push = require('./auth/push');
 const googleWallet = require('./auth/googleWallet');
 const { checkRateLimit } = require('./auth/rateLimit');
 
+type Req = http.IncomingMessage;
+type Res = http.ServerResponse;
+
 const PORT = process.env.PORT || 3000;
-const PUBLIC_DIR = path.join(__dirname, 'public');
+const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
@@ -39,7 +43,7 @@ const SESSION_COOKIE = 'sid';
 const STATE_COOKIE = 'oauth_state';
 const REF_COOKIE = 'pending_ref';
 
-const MIME_TYPES = {
+const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -47,7 +51,11 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon',
 };
 
-function sendJson(res, statusCode, payload, extraHeaders = {}) {
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function sendJson(res: Res, statusCode: number, payload: unknown, extraHeaders: Record<string, string | string[]> = {}): void {
   const body = JSON.stringify(payload);
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -57,11 +65,11 @@ function sendJson(res, statusCode, payload, extraHeaders = {}) {
   res.end(body);
 }
 
-function readBody(req, maxBytes = 10_000) {
+function readBody(req: Req, maxBytes = 10_000): Promise<string> {
   return new Promise((resolve, reject) => {
     let size = 0;
-    const chunks = [];
-    req.on('data', (chunk) => {
+    const chunks: Buffer[] = [];
+    req.on('data', (chunk: Buffer) => {
       size += chunk.length;
       if (size > maxBytes) {
         reject(new Error('PAYLOAD_TOO_LARGE'));
@@ -75,17 +83,17 @@ function readBody(req, maxBytes = 10_000) {
   });
 }
 
-async function readJsonBody(req) {
+async function readJsonBody(req: Req): Promise<any> {
   const raw = await readBody(req);
   return raw ? JSON.parse(raw) : {};
 }
 
-function normalizePhone(raw) {
+function normalizePhone(raw: unknown): string {
   return String(raw || '').replace(/[\s-]/g, '');
 }
 
-function validateSubscription({ nombre, telefono, dni, unasam }) {
-  const errors = {};
+function validateSubscription({ nombre, telefono, dni, unasam }: { nombre?: unknown; telefono?: unknown; dni?: unknown; unasam?: unknown }) {
+  const errors: Record<string, string> = {};
 
   const cleanNombre = String(nombre || '').trim();
   if (cleanNombre.length < 2 || cleanNombre.length > 100) {
@@ -113,8 +121,8 @@ function validateSubscription({ nombre, telefono, dni, unasam }) {
   };
 }
 
-function validateContactInfo({ dni, telefono }) {
-  const errors = {};
+function validateContactInfo({ dni, telefono }: { dni?: unknown; telefono?: unknown }) {
+  const errors: Record<string, string> = {};
 
   const cleanDni = String(dni || '').trim();
   if (!/^\d{8}$/.test(cleanDni)) {
@@ -134,13 +142,13 @@ function validateContactInfo({ dni, telefono }) {
 // conexión directa. No se valida el proxy en sí (más allá del alcance de
 // esta app), así que en un despliegue público real ese header solo debe
 // confiarse si viene de una red/proxy propios.
-function getClientIp(req) {
+function getClientIp(req: Req): string {
   const forwarded = req.headers['x-forwarded-for'];
   if (forwarded) return String(forwarded).split(',')[0].trim();
   return req.socket.remoteAddress || 'unknown';
 }
 
-function rateLimited(req, res, routeKey, { max, windowMs }) {
+function rateLimited(req: Req, res: Res, routeKey: string, { max, windowMs }: { max: number; windowMs: number }): boolean {
   const result = checkRateLimit(`${routeKey}:${getClientIp(req)}`, { max, windowMs });
   if (!result.allowed) {
     sendJson(res, 429, {
@@ -152,7 +160,7 @@ function rateLimited(req, res, routeKey, { max, windowMs }) {
   return false;
 }
 
-function isAuthorizedAdmin(req) {
+function isAuthorizedAdmin(req: Req): boolean {
   if (!ADMIN_TOKEN) return false;
   const provided = req.headers['x-admin-token'] || '';
   const a = Buffer.from(String(provided));
@@ -162,9 +170,9 @@ function isAuthorizedAdmin(req) {
 
 // ───────────────────────── cookies ─────────────────────────
 
-function parseCookies(req) {
+function parseCookies(req: Req): Record<string, string> {
   const header = req.headers.cookie || '';
-  const out = {};
+  const out: Record<string, string> = {};
   header.split(';').forEach((pair) => {
     const idx = pair.indexOf('=');
     if (idx === -1) return;
@@ -175,29 +183,29 @@ function parseCookies(req) {
   return out;
 }
 
-function isHttpsRequest(req) {
-  return req.headers['x-forwarded-proto'] === 'https' || Boolean(req.socket.encrypted);
+function isHttpsRequest(req: Req): boolean {
+  return req.headers['x-forwarded-proto'] === 'https' || Boolean((req.socket as { encrypted?: boolean }).encrypted);
 }
 
-function cookieString(req, name, value, { maxAge } = {}) {
+function cookieString(req: Req, name: string, value: string, { maxAge }: { maxAge?: number } = {}): string {
   const parts = [`${name}=${encodeURIComponent(value)}`, 'Path=/', 'HttpOnly', 'SameSite=Lax'];
   if (isHttpsRequest(req)) parts.push('Secure');
   if (maxAge != null) parts.push(`Max-Age=${maxAge}`);
   return parts.join('; ');
 }
 
-function clearCookieString(req, name) {
+function clearCookieString(req: Req, name: string): string {
   return cookieString(req, name, '', { maxAge: 0 });
 }
 
-function getSessionFromRequest(req) {
+function getSessionFromRequest(req: Req): { token: string; session: ReturnType<typeof getSession> } | null {
   const cookies = parseCookies(req);
   const token = cookies[SESSION_COOKIE];
   const session = getSession(token);
   return session ? { token, session } : null;
 }
 
-function requireActiveUser(req) {
+function requireActiveUser(req: Req) {
   const found = getSessionFromRequest(req);
   if (!found || found.session.stage !== 'active') return null;
   return getUserById(found.session.user_id);
@@ -205,7 +213,7 @@ function requireActiveUser(req) {
 
 // ───────────────────────── perfil / wallet ─────────────────────────
 
-function serializeUser(user) {
+function serializeUser(user: NonNullable<ReturnType<typeof getUserById>>) {
   const family = getFamilyGroupForUser(user.id);
   const reward = getRewardProgress(user.id);
   return {
@@ -227,7 +235,7 @@ function serializeUser(user) {
   };
 }
 
-async function handleMe(req, res) {
+async function handleMe(req: Req, res: Res): Promise<void> {
   const found = getSessionFromRequest(req);
   if (!found) return sendJson(res, 200, { authenticated: false });
 
@@ -271,14 +279,14 @@ async function handleMe(req, res) {
   sendJson(res, 200, { authenticated: true, stage: 'active', user: serializeUser(user) });
 }
 
-async function handleProfileComplete(req, res) {
+async function handleProfileComplete(req: Req, res: Res): Promise<void> {
   if (rateLimited(req, res, 'profile-complete', { max: 10, windowMs: 10 * 60_000 })) return;
   const found = getSessionFromRequest(req);
   if (!found) return sendJson(res, 401, { ok: false, error: 'No autenticado.' });
   const user = getUserById(found.session.user_id);
   if (!user) return sendJson(res, 401, { ok: false, error: 'No autenticado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -293,7 +301,7 @@ async function handleProfileComplete(req, res) {
   try {
     setUserContactInfo(user.id, value.dni, value.telefono);
   } catch (err) {
-    if (err.message === 'DNI_TAKEN') {
+    if (errorMessage(err) === 'DNI_TAKEN') {
       return sendJson(res, 409, { ok: false, error: 'Ese DNI ya está vinculado a otra cuenta.' });
     }
     throw err;
@@ -304,13 +312,16 @@ async function handleProfileComplete(req, res) {
 
 // ───────────────────────── auth Google + 2FA ─────────────────────────
 
-function handleGoogleStart(req, res, query) {
+function handleGoogleStart(req: Req, res: Res, query: URLSearchParams): void {
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
     res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
-    return res.end('Login con Google no está configurado (faltan GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).');
+    res.end('Login con Google no está configurado (faltan GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).');
+    return;
   }
   const state = crypto.randomBytes(16).toString('base64url');
-  const headers = { Location: google.buildAuthUrl({ clientId: GOOGLE_CLIENT_ID, redirectUri: GOOGLE_REDIRECT_URI, state }) };
+  const headers: Record<string, string | string[]> = {
+    Location: google.buildAuthUrl({ clientId: GOOGLE_CLIENT_ID, redirectUri: GOOGLE_REDIRECT_URI, state }),
+  };
   const cookies = [cookieString(req, STATE_COOKIE, state, { maxAge: 600 })];
   const ref = String(query.get('ref') || '').trim();
   if (ref) cookies.push(cookieString(req, REF_COOKIE, ref, { maxAge: 600 }));
@@ -319,14 +330,15 @@ function handleGoogleStart(req, res, query) {
   res.end();
 }
 
-async function handleGoogleCallback(req, res, query) {
+async function handleGoogleCallback(req: Req, res: Res, query: URLSearchParams): Promise<void> {
   const cookies = parseCookies(req);
   const code = query.get('code');
   const state = query.get('state');
 
   if (!code || !state || state !== cookies[STATE_COOKIE]) {
     res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
-    return res.end('Solicitud de login inválida o expirada.');
+    res.end('Solicitud de login inválida o expirada.');
+    return;
   }
 
   try {
@@ -372,7 +384,7 @@ async function handleGoogleCallback(req, res, query) {
   }
 }
 
-function handleLogout(req, res) {
+function handleLogout(req: Req, res: Res): void {
   const found = getSessionFromRequest(req);
   if (found) deleteSession(found.token);
   res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Set-Cookie': clearCookieString(req, SESSION_COOKIE) });
@@ -382,7 +394,7 @@ function handleLogout(req, res) {
 // Cierra la sesión actual y todas las demás abiertas de este usuario (otros
 // dispositivos/navegadores) — no hay forma de listarlas/revocarlas una por
 // una, es todo o nada.
-function handleLogoutAll(req, res) {
+function handleLogoutAll(req: Req, res: Res): void {
   const found = getSessionFromRequest(req);
   if (!found) return sendJson(res, 401, { ok: false, error: 'No autenticado.' });
   deleteAllSessionsForUser(found.session.user_id);
@@ -390,7 +402,7 @@ function handleLogoutAll(req, res) {
   res.end(JSON.stringify({ ok: true }));
 }
 
-async function handleTotpSetup(req, res) {
+async function handleTotpSetup(req: Req, res: Res): Promise<void> {
   const found = getSessionFromRequest(req);
   if (!found || found.session.stage !== 'needs_2fa_setup') {
     return sendJson(res, 400, { ok: false, error: 'No corresponde configurar 2FA en este momento.' });
@@ -401,7 +413,7 @@ async function handleTotpSetup(req, res) {
   sendJson(res, 200, { ok: true, secret, otpauthUrl: totp.otpauthUrl({ secret, email: user.email }) });
 }
 
-async function handleTotpVerify(req, res) {
+async function handleTotpVerify(req: Req, res: Res): Promise<void> {
   if (rateLimited(req, res, '2fa-verify', { max: 20, windowMs: 5 * 60_000 })) return;
 
   const found = getSessionFromRequest(req);
@@ -416,7 +428,7 @@ async function handleTotpVerify(req, res) {
     });
   }
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -441,19 +453,19 @@ async function handleTotpVerify(req, res) {
 
 // ───────────────────────── wallet (compras / canje / familia) ─────────────────────────
 
-function handlePurchasesList(req, res, query) {
+function handlePurchasesList(req: Req, res: Res, query: URLSearchParams): void {
   const user = requireActiveUser(req);
   if (!user) return sendJson(res, 401, { ok: false, error: 'No autenticado.' });
-  const result = listPurchasesByUser(user.id, { page: query.get('page'), limit: query.get('limit') });
+  const result = listPurchasesByUser(user.id, { page: query.get('page') || undefined, limit: query.get('limit') || undefined });
   sendJson(res, 200, { ok: true, ...result });
 }
 
-async function handlePointsRedeem(req, res) {
+async function handlePointsRedeem(req: Req, res: Res): Promise<void> {
   if (rateLimited(req, res, 'points-redeem', { max: 20, windowMs: 5 * 60_000 })) return;
   const user = requireActiveUser(req);
   if (!user) return sendJson(res, 401, { ok: false, error: 'No autenticado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -465,7 +477,7 @@ async function handlePointsRedeem(req, res) {
     syncWalletPoints(user.id);
     sendJson(res, 200, { ok: true, balance });
   } catch (err) {
-    const msg = err.message === 'INSUFFICIENT_BALANCE'
+    const msg = errorMessage(err) === 'INSUFFICIENT_BALANCE'
       ? 'No tienes suficientes puntos para este canje.'
       : 'Cantidad de puntos inválida.';
     sendJson(res, 400, { ok: false, error: msg });
@@ -474,13 +486,13 @@ async function handlePointsRedeem(req, res) {
 
 // ───────────────────────── ruleta de premios ─────────────────────────
 
-function handleSpinStatus(req, res) {
+function handleSpinStatus(req: Req, res: Res): void {
   const user = requireActiveUser(req);
   if (!user) return sendJson(res, 401, { ok: false, error: 'No autenticado.' });
   sendJson(res, 200, { ok: true, ...getSpinStatus(user.id) });
 }
 
-function handleSpinPlay(req, res) {
+function handleSpinPlay(req: Req, res: Res): void {
   if (rateLimited(req, res, 'wallet-spin', { max: 10, windowMs: 5 * 60_000 })) return;
   const user = requireActiveUser(req);
   if (!user) return sendJson(res, 401, { ok: false, error: 'No autenticado.' });
@@ -490,18 +502,18 @@ function handleSpinPlay(req, res) {
     syncWalletPoints(user.id);
     sendJson(res, 200, { ok: true, ...result });
   } catch (err) {
-    if (err.message === 'SPIN_COOLDOWN') {
+    if (errorMessage(err) === 'SPIN_COOLDOWN') {
       return sendJson(res, 429, { ok: false, error: 'Todavía no puedes girar de nuevo.', ...getSpinStatus(user.id) });
     }
     sendJson(res, 500, { ok: false, error: 'No se pudo girar la ruleta.' });
   }
 }
 
-async function handleFamilyCreate(req, res) {
+async function handleFamilyCreate(req: Req, res: Res): Promise<void> {
   const user = requireActiveUser(req);
   if (!user) return sendJson(res, 401, { ok: false, error: 'No autenticado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -516,11 +528,11 @@ async function handleFamilyCreate(req, res) {
   sendJson(res, 201, { ok: true, group });
 }
 
-async function handleFamilyJoin(req, res) {
+async function handleFamilyJoin(req: Req, res: Res): Promise<void> {
   const user = requireActiveUser(req);
   if (!user) return sendJson(res, 401, { ok: false, error: 'No autenticado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -535,7 +547,7 @@ async function handleFamilyJoin(req, res) {
   }
 }
 
-function handleFamilyLeave(req, res) {
+function handleFamilyLeave(req: Req, res: Res): void {
   const user = requireActiveUser(req);
   if (!user) return sendJson(res, 401, { ok: false, error: 'No autenticado.' });
 
@@ -547,18 +559,18 @@ function handleFamilyLeave(req, res) {
   }
 }
 
-async function handleFamilyRemoveMember(req, res) {
+async function handleFamilyRemoveMember(req: Req, res: Res): Promise<void> {
   const user = requireActiveUser(req);
   if (!user) return sendJson(res, 401, { ok: false, error: 'No autenticado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
     return sendJson(res, 400, { ok: false, error: 'JSON inválido.' });
   }
 
-  const FAMILY_REMOVE_ERRORS = {
+  const FAMILY_REMOVE_ERRORS: Record<string, string> = {
     NOT_IN_GROUP: 'No perteneces a ningún grupo familiar.',
     NOT_OWNER: 'Solo el dueño del grupo puede expulsar miembros.',
     CANNOT_REMOVE_SELF: 'Usa "Salir del grupo" para vos mismo.',
@@ -569,7 +581,7 @@ async function handleFamilyRemoveMember(req, res) {
     removeFamilyMember(user.id, body.userId);
     sendJson(res, 200, { ok: true });
   } catch (err) {
-    sendJson(res, 400, { ok: false, error: FAMILY_REMOVE_ERRORS[err.message] || 'No se pudo expulsar al miembro.' });
+    sendJson(res, 400, { ok: false, error: FAMILY_REMOVE_ERRORS[errorMessage(err)] || 'No se pudo expulsar al miembro.' });
   }
 }
 
@@ -578,11 +590,11 @@ async function handleFamilyRemoveMember(req, res) {
 // Público: las promociones activas son contenido de marketing, no datos
 // privados, así que se muestran también a visitantes sin sesión en la
 // landing (/). No incluyen los códigos de canje (ver listActivePromotions).
-function handlePromotionsList(req, res) {
+function handlePromotionsList(req: Req, res: Res): void {
   sendJson(res, 200, { ok: true, items: listActivePromotions() });
 }
 
-const PROMO_REDEEM_ERRORS = {
+const PROMO_REDEEM_ERRORS: Record<string, string> = {
   CODE_NOT_FOUND: 'Ese código no existe.',
   PROMOTION_INACTIVE: 'Esta promoción ya no está activa.',
   PROMOTION_NOT_STARTED: 'Esta promoción todavía no empieza.',
@@ -590,12 +602,12 @@ const PROMO_REDEEM_ERRORS = {
   CODE_EXHAUSTED: 'Este código ya alcanzó su límite de usos.',
 };
 
-async function handlePromotionRedeem(req, res) {
+async function handlePromotionRedeem(req: Req, res: Res): Promise<void> {
   if (rateLimited(req, res, 'promo-redeem', { max: 20, windowMs: 5 * 60_000 })) return;
   const user = requireActiveUser(req);
   if (!user) return sendJson(res, 401, { ok: false, error: 'No autenticado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -608,21 +620,21 @@ async function handlePromotionRedeem(req, res) {
     const { promotion, code } = redeemPromotionCode(body.code, user.id);
     sendJson(res, 200, { ok: true, promotion, code });
   } catch (err) {
-    sendJson(res, 400, { ok: false, error: PROMO_REDEEM_ERRORS[err.message] || 'No se pudo canjear el código.' });
+    sendJson(res, 400, { ok: false, error: PROMO_REDEEM_ERRORS[errorMessage(err)] || 'No se pudo canjear el código.' });
   }
 }
 
 // ───────────────────────── notificaciones push (cliente) ─────────────────────────
 
-function handlePushVapidKey(req, res) {
+function handlePushVapidKey(req: Req, res: Res): void {
   sendJson(res, 200, { ok: true, configured: push.isConfigured(), publicKey: push.publicKey() });
 }
 
-async function handlePushSubscribe(req, res) {
+async function handlePushSubscribe(req: Req, res: Res): Promise<void> {
   const user = requireActiveUser(req);
   if (!user) return sendJson(res, 401, { ok: false, error: 'No autenticado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -640,8 +652,8 @@ async function handlePushSubscribe(req, res) {
   sendJson(res, 201, { ok: true });
 }
 
-async function handlePushUnsubscribe(req, res) {
-  let body;
+async function handlePushUnsubscribe(req: Req, res: Res): Promise<void> {
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -653,7 +665,7 @@ async function handlePushUnsubscribe(req, res) {
 
 // ───────────────────────── Google Wallet (tarjeta de fidelidad) ─────────────────────────
 
-function handleGoogleWalletPass(req, res) {
+function handleGoogleWalletPass(req: Req, res: Res): void {
   const user = requireActiveUser(req);
   if (!user) return sendJson(res, 401, { ok: false, error: 'No autenticado.' });
   if (!googleWallet.isConfigured()) {
@@ -677,23 +689,23 @@ function handleGoogleWalletPass(req, res) {
 // Empuja el saldo actual al pase de Google Wallet ya guardado (si el usuario
 // lo guardó y hay credenciales configuradas). Mejor esfuerzo: nunca bloquea
 // ni hace fallar la respuesta HTTP que la disparó.
-function syncWalletPoints(userId) {
+function syncWalletPoints(userId: number): void {
   if (!googleWallet.isConfigured()) return;
   googleWallet.patchLoyaltyPoints(userId, getPointsBalance(userId));
 }
 
 // ───────────────────────── suscripción pre-apertura (existente) ─────────────────────────
 
-async function handleSubscribe(req, res) {
+async function handleSubscribe(req: Req, res: Res): Promise<void> {
   if (rateLimited(req, res, 'subscribe', { max: 10, windowMs: 60 * 60_000 })) return;
-  let raw;
+  let raw: string;
   try {
     raw = await readBody(req);
   } catch {
     return sendJson(res, 413, { ok: false, error: 'Solicitud demasiado grande.' });
   }
 
-  let data;
+  let data: any;
   try {
     data = JSON.parse(raw);
   } catch {
@@ -716,11 +728,11 @@ async function handleSubscribe(req, res) {
   return sendJson(res, 201, { ok: true, total: getCount() });
 }
 
-function handleCount(req, res) {
+function handleCount(req: Req, res: Res): void {
   sendJson(res, 200, { ok: true, total: getCount() });
 }
 
-function handleAdminList(req, res) {
+function handleAdminList(req: Req, res: Res): void {
   if (!isAuthorizedAdmin(req)) {
     return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   }
@@ -729,14 +741,14 @@ function handleAdminList(req, res) {
 
 // ───────────────────────── administrador (wallet / tráfico / referidos / familia) ─────────────────────────
 
-function paginationParams(query) {
-  return { page: query.get('page'), limit: query.get('limit'), q: query.get('q') || undefined };
+function paginationParams(query: URLSearchParams): { page: string | undefined; limit: string | undefined; q: string | undefined } {
+  return { page: query.get('page') || undefined, limit: query.get('limit') || undefined, q: query.get('q') || undefined };
 }
 
-async function handleAdminPurchaseCreate(req, res) {
+async function handleAdminPurchaseCreate(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -759,17 +771,17 @@ async function handleAdminPurchaseCreate(req, res) {
   sendJson(res, 201, { ok: true, ...result });
 }
 
-function handleAdminUsers(req, res, query) {
+function handleAdminUsers(req: Req, res: Res, query: URLSearchParams): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   sendJson(res, 200, { ok: true, ...adminListUsers(paginationParams(query)) });
 }
 
 // Fuerza el cierre de sesión de un cliente en todos sus dispositivos (ej.
 // celular perdido/robado, sospecha de cuenta comprometida).
-async function handleAdminForceLogout(req, res) {
+async function handleAdminForceLogout(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -786,34 +798,34 @@ async function handleAdminForceLogout(req, res) {
   sendJson(res, 200, { ok: true });
 }
 
-function handleAdminReferrals(req, res, query) {
+function handleAdminReferrals(req: Req, res: Res, query: URLSearchParams): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   sendJson(res, 200, { ok: true, ...adminListReferrals(paginationParams(query)) });
 }
 
-function handleAdminFamilyGroups(req, res, query) {
+function handleAdminFamilyGroups(req: Req, res: Res, query: URLSearchParams): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   sendJson(res, 200, { ok: true, ...adminListFamilyGroups(paginationParams(query)) });
 }
 
-function handleAdminPurchases(req, res, query) {
+function handleAdminPurchases(req: Req, res: Res, query: URLSearchParams): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   sendJson(res, 200, { ok: true, ...adminListPurchases(paginationParams(query)) });
 }
 
-function handleAdminTraffic(req, res) {
+function handleAdminTraffic(req: Req, res: Res): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   sendJson(res, 200, { ok: true, ...adminTrafficStats() });
 }
 
 // ───────────────────────── administrador: promociones + push ─────────────────────────
 
-function handleAdminPromotionsList(req, res, query) {
+function handleAdminPromotionsList(req: Req, res: Res, query: URLSearchParams): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   sendJson(res, 200, { ok: true, pushConfigured: push.isConfigured(), ...adminListPromotions(paginationParams(query)) });
 }
 
-function handleAdminPromotionsSummary(req, res) {
+function handleAdminPromotionsSummary(req: Req, res: Res): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   sendJson(res, 200, { ok: true, ...adminPromotionsSummary() });
 }
@@ -821,7 +833,7 @@ function handleAdminPromotionsSummary(req, res) {
 // Quiénes canjearon esta promoción — "quiénes fueron los elegidos". Los que
 // no canjearon se calculan del lado del cliente restando esta lista del
 // total de usuarios (adminPromotionsSummary ya trae ese total).
-function handleAdminPromotionRedeemers(req, res, query) {
+function handleAdminPromotionRedeemers(req: Req, res: Res, query: URLSearchParams): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   const id = Number(query.get('id'));
   if (!id) return sendJson(res, 400, { ok: false, error: 'Falta el id de la promoción.' });
@@ -831,26 +843,26 @@ function handleAdminPromotionRedeemers(req, res, query) {
 // El complemento de handleAdminPromotionRedeemers: quiénes NO canjearon
 // ningún código de esta promoción, paginado y con búsqueda — para no traer
 // a los mil clientes de un jalón cuando la promoción tiene poco alcance.
-function handleAdminPromotionNonRedeemers(req, res, query) {
+function handleAdminPromotionNonRedeemers(req: Req, res: Res, query: URLSearchParams): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   const id = Number(query.get('id'));
   if (!id) return sendJson(res, 400, { ok: false, error: 'Falta el id de la promoción.' });
   sendJson(res, 200, { ok: true, ...getPromotionNonRedeemers(id, paginationParams(query)) });
 }
 
-function handleAdminTopCustomers(req, res, query) {
+function handleAdminTopCustomers(req: Req, res: Res, query: URLSearchParams): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   sendJson(res, 200, {
     ok: true,
     ...adminTopCustomersByPurchases({
       ...paginationParams(query),
-      minCompras: query.get('minCompras'),
+      minCompras: query.get('minCompras') || undefined,
       sortBy: query.get('sortBy') || undefined,
     }),
   });
 }
 
-function handleAdminRecurringPromoCustomers(req, res, query) {
+function handleAdminRecurringPromoCustomers(req: Req, res: Res, query: URLSearchParams): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   sendJson(res, 200, { ok: true, ...adminRecurringPromoCustomers(paginationParams(query)) });
 }
@@ -859,10 +871,10 @@ function handleAdminRecurringPromoCustomers(req, res, query) {
 // `concurrency` llamadas en vuelo a la vez, en vez de disparar todas de
 // golpe con Promise.all (eso satura la API de Google cuando hay miles de
 // usuarios con la tarjeta guardada).
-async function runInBatches(items, concurrency, task) {
-  const results = new Array(items.length);
+async function runInBatches<T, R>(items: T[], concurrency: number, task: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
   let next = 0;
-  async function worker() {
+  async function worker(): Promise<void> {
     while (next < items.length) {
       const i = next++;
       results[i] = await task(items[i], i);
@@ -881,31 +893,42 @@ const WALLET_PUSH_CONCURRENCY = 5;
 // puede quedar bloqueada esperando cientos de llamadas a Google antes de
 // responderle al admin. Los errores solo se registran; nunca deben tumbar
 // la respuesta del admin ni el scheduler.
-function sendWalletPromotionPushInBackground(userIds, { title, promoBody, photoUrl }) {
+function sendWalletPromotionPushInBackground(
+  userIds: number[],
+  { title, promoBody, photoUrl }: { title: string; promoBody: string; photoUrl: string | null }
+): void {
   runInBatches(userIds, WALLET_PUSH_CONCURRENCY, async (userId) => {
     await googleWallet.pushLoyaltyMessage(userId, { header: title, body: promoBody });
     if (photoUrl) {
       await googleWallet.patchHeroImage(userId, { imageUrl: photoUrl, description: title });
     }
-  }).catch((err) => {
+  }).catch((err: unknown) => {
     console.error('Error enviando push de Google Wallet en segundo plano:', err);
   });
+}
+
+interface PromotionLike {
+  id: number;
+  title: string;
+  body: string;
+  photo_url: string | null;
+  starts_at?: string | null;
 }
 
 // Envía el push (navegador + Google Wallet) de una promoción y la marca
 // como activada. La llama handleAdminPromotionCreate cuando la vigencia ya
 // empezó, y runPromotionScheduler cuando le toca a una programada para
 // más adelante — misma lógica en los dos casos, un solo lugar.
-async function activatePromotion(promotion) {
+async function activatePromotion(promotion: PromotionLike): Promise<{ pushSent: number; walletPushQueued: number }> {
   const { id, title, body: promoBody, photo_url: photoUrl } = promotion;
 
   let pushSent = 0;
   if (push.isConfigured()) {
-    const subs = listAllPushSubscriptions();
+    const subs: PushSubscriptionDbRow[] = listAllPushSubscriptions();
     const results = await Promise.all(
       subs.map((sub) => push.sendToSubscription(sub, { title, body: promoBody }))
     );
-    results.forEach((result, i) => {
+    results.forEach((result: { ok: boolean; gone?: boolean }, i: number) => {
       if (result.ok) pushSent += 1;
       else if (result.gone) removePushSubscription(subs[i].endpoint);
     });
@@ -914,7 +937,7 @@ async function activatePromotion(promotion) {
 
   let walletPushQueued = 0;
   if (googleWallet.isConfigured()) {
-    const userIds = listWalletSavedUserIds();
+    const userIds: number[] = listWalletSavedUserIds();
     walletPushQueued = userIds.length;
     sendWalletPromotionPushInBackground(userIds, { title, promoBody, photoUrl });
   }
@@ -926,12 +949,12 @@ async function activatePromotion(promotion) {
 // Programación por día: si starts_at todavía no llegó, la promoción queda
 // guardada pero sin avisarle a nadie hasta que runPromotionScheduler la
 // recoja (ver el arranque del servidor, más abajo).
-function isReadyToActivate(promotion) {
+function isReadyToActivate(promotion: PromotionLike): boolean {
   if (!promotion.starts_at) return true;
   return String(promotion.starts_at).slice(0, 10) <= new Date().toISOString().slice(0, 10);
 }
 
-async function runPromotionScheduler() {
+async function runPromotionScheduler(): Promise<void> {
   for (const promotion of listPromotionsReadyToActivate()) {
     try {
       await activatePromotion(promotion);
@@ -941,10 +964,10 @@ async function runPromotionScheduler() {
   }
 }
 
-async function handleAdminPromotionCreate(req, res) {
+async function handleAdminPromotionCreate(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -989,10 +1012,10 @@ async function handleAdminPromotionCreate(req, res) {
   sendJson(res, 201, { ok: true, promotion, pushSent, walletPushQueued, scheduled });
 }
 
-async function handleAdminPromotionDeactivate(req, res) {
+async function handleAdminPromotionDeactivate(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -1004,10 +1027,10 @@ async function handleAdminPromotionDeactivate(req, res) {
   sendJson(res, 200, { ok: true });
 }
 
-async function handleAdminPromotionUpdate(req, res) {
+async function handleAdminPromotionUpdate(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -1032,10 +1055,10 @@ async function handleAdminPromotionUpdate(req, res) {
   }
 }
 
-async function handleAdminPromotionDelete(req, res) {
+async function handleAdminPromotionDelete(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -1048,17 +1071,17 @@ async function handleAdminPromotionDelete(req, res) {
     deletePromotion(body.id);
     sendJson(res, 200, { ok: true });
   } catch (err) {
-    const msg = err.message === 'PROMOTION_HAS_REDEMPTIONS'
+    const msg = errorMessage(err) === 'PROMOTION_HAS_REDEMPTIONS'
       ? 'Esta promoción ya tiene canjes registrados: no se puede borrar, solo desactivar.'
       : 'Promoción no encontrada.';
     sendJson(res, 400, { ok: false, error: msg });
   }
 }
 
-async function handleAdminPromotionAddCode(req, res) {
+async function handleAdminPromotionAddCode(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -1077,20 +1100,20 @@ async function handleAdminPromotionAddCode(req, res) {
 
 // ───────────────────────── administrador: catálogo de productos ─────────────────────────
 
-function handleAdminProductsList(req, res, query) {
+function handleAdminProductsList(req: Req, res: Res, query: URLSearchParams): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   sendJson(res, 200, { ok: true, ...adminListProducts(paginationParams(query)) });
 }
 
-function handleAdminProductsActive(req, res) {
+function handleAdminProductsActive(req: Req, res: Res): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   sendJson(res, 200, { ok: true, items: listActiveProducts() });
 }
 
-async function handleAdminProductCreate(req, res) {
+async function handleAdminProductCreate(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -1104,10 +1127,10 @@ async function handleAdminProductCreate(req, res) {
   sendJson(res, 201, { ok: true, product });
 }
 
-async function handleAdminProductDeactivate(req, res) {
+async function handleAdminProductDeactivate(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -1119,10 +1142,10 @@ async function handleAdminProductDeactivate(req, res) {
   sendJson(res, 200, { ok: true });
 }
 
-async function handleAdminProductUpdate(req, res) {
+async function handleAdminProductUpdate(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -1139,10 +1162,10 @@ async function handleAdminProductUpdate(req, res) {
   }
 }
 
-async function handleAdminProductDelete(req, res) {
+async function handleAdminProductDelete(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -1155,7 +1178,7 @@ async function handleAdminProductDelete(req, res) {
     deleteProduct(body.id);
     sendJson(res, 200, { ok: true });
   } catch (err) {
-    const msg = err.message === 'PRODUCT_IN_USE'
+    const msg = errorMessage(err) === 'PRODUCT_IN_USE'
       ? 'Este producto está asociado a una o más promociones: no se puede borrar, solo desactivar.'
       : 'Producto no encontrado.';
     sendJson(res, 400, { ok: false, error: msg });
@@ -1164,15 +1187,15 @@ async function handleAdminProductDelete(req, res) {
 
 // ───────────────────────── administrador: campos de perfil dinámicos ─────────────────────────
 
-function handleAdminProfileFieldsList(req, res) {
+function handleAdminProfileFieldsList(req: Req, res: Res): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   sendJson(res, 200, { ok: true, items: adminListProfileFields() });
 }
 
-async function handleAdminProfileFieldCreate(req, res) {
+async function handleAdminProfileFieldCreate(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -1192,10 +1215,10 @@ async function handleAdminProfileFieldCreate(req, res) {
   sendJson(res, 201, { ok: true, field });
 }
 
-async function handleAdminProfileFieldUpdate(req, res) {
+async function handleAdminProfileFieldUpdate(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -1217,10 +1240,10 @@ async function handleAdminProfileFieldUpdate(req, res) {
   }
 }
 
-async function handleAdminProfileFieldDelete(req, res) {
+async function handleAdminProfileFieldDelete(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -1233,7 +1256,7 @@ async function handleAdminProfileFieldDelete(req, res) {
     deleteProfileField(body.id);
     sendJson(res, 200, { ok: true });
   } catch (err) {
-    const msg = err.message === 'PROFILE_FIELD_IN_USE'
+    const msg = errorMessage(err) === 'PROFILE_FIELD_IN_USE'
       ? 'Ya hay clientes con datos en este campo: no se puede borrar, solo desactivar.'
       : 'Campo no encontrado.';
     sendJson(res, 400, { ok: false, error: msg });
@@ -1242,12 +1265,12 @@ async function handleAdminProfileFieldDelete(req, res) {
 
 // ───────────────────────── cliente: campos de perfil dinámicos ─────────────────────────
 
-async function handleProfileFieldsSubmit(req, res) {
+async function handleProfileFieldsSubmit(req: Req, res: Res): Promise<void> {
   if (rateLimited(req, res, 'profile-fields', { max: 20, windowMs: 10 * 60_000 })) return;
   const found = getSessionFromRequest(req);
   if (!found) return sendJson(res, 401, { ok: false, error: 'No autenticado.' });
 
-  let body;
+  let body: any;
   try {
     body = await readJsonBody(req);
   } catch {
@@ -1261,18 +1284,18 @@ async function handleProfileFieldsSubmit(req, res) {
 
 // ───────────────────────── administrador: exportar CSV ─────────────────────────
 
-function csvEscape(value) {
+function csvEscape(value: unknown): string {
   const str = value === null || value === undefined ? '' : String(value);
   return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 }
 
-function toCsv(rows, columns) {
+function toCsv(rows: Record<string, unknown>[], columns: { key: string; label: string }[]): string {
   const header = columns.map((c) => csvEscape(c.label)).join(',');
   const lines = rows.map((row) => columns.map((c) => csvEscape(row[c.key])).join(','));
   return [header, ...lines].join('\r\n');
 }
 
-function sendCsv(res, filename, csv) {
+function sendCsv(res: Res, filename: string, csv: string): void {
   res.writeHead(200, {
     'Content-Type': 'text/csv; charset=utf-8',
     'Content-Disposition': `attachment; filename="${filename}"`,
@@ -1280,7 +1303,7 @@ function sendCsv(res, filename, csv) {
   res.end('﻿' + csv);
 }
 
-function handleAdminExportUsers(req, res) {
+function handleAdminExportUsers(req: Req, res: Res): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   const csv = toCsv(adminAllUsers(), [
     { key: 'name', label: 'Nombre' },
@@ -1296,7 +1319,7 @@ function handleAdminExportUsers(req, res) {
   sendCsv(res, 'usuarios.csv', csv);
 }
 
-function handleAdminExportPurchases(req, res) {
+function handleAdminExportPurchases(req: Req, res: Res): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   const csv = toCsv(adminAllPurchases(), [
     { key: 'created_at', label: 'Fecha' },
@@ -1309,7 +1332,7 @@ function handleAdminExportPurchases(req, res) {
   sendCsv(res, 'compras.csv', csv);
 }
 
-function handleAdminExportReferrals(req, res) {
+function handleAdminExportReferrals(req: Req, res: Res): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   const csv = toCsv(adminAllReferrals(), [
     { key: 'name', label: 'Usuario' },
@@ -1325,20 +1348,22 @@ function handleAdminExportReferrals(req, res) {
 
 // ───────────────────────── estáticos ─────────────────────────
 
-function serveStatic(req, res, urlPath) {
+function serveStatic(req: Req, res: Res, urlPath: string): void {
   const requestPath = decodeURIComponent(urlPath);
   const relativePath = requestPath === '/' ? '/index.html' : requestPath;
   const resolvedPath = path.normalize(path.join(PUBLIC_DIR, relativePath));
 
   if (!resolvedPath.startsWith(PUBLIC_DIR)) {
     res.writeHead(403);
-    return res.end('Forbidden');
+    res.end('Forbidden');
+    return;
   }
 
   fs.readFile(resolvedPath, (err, content) => {
     if (err) {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-      return res.end('404 - No encontrado');
+      res.end('404 - No encontrado');
+      return;
     }
     const ext = path.extname(resolvedPath);
     res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' });
@@ -1349,74 +1374,74 @@ function serveStatic(req, res, urlPath) {
 // ───────────────────────── router ─────────────────────────
 
 const server = http.createServer(async (req, res) => {
-  const fullUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const fullUrl = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
   const url = fullUrl.pathname;
   const query = fullUrl.searchParams;
 
   try {
     // suscripción pre-apertura
-    if (req.method === 'POST' && url === '/api/subscribe') return handleSubscribe(req, res);
+    if (req.method === 'POST' && url === '/api/subscribe') return await handleSubscribe(req, res);
     if (req.method === 'GET' && url === '/api/subscribe/count') return handleCount(req, res);
     if (req.method === 'GET' && url === '/api/admin/subscribers') return handleAdminList(req, res);
 
     // auth Google + 2FA
     if (req.method === 'GET' && url === '/auth/google') return handleGoogleStart(req, res, query);
-    if (req.method === 'GET' && url === '/auth/google/callback') return handleGoogleCallback(req, res, query);
+    if (req.method === 'GET' && url === '/auth/google/callback') return await handleGoogleCallback(req, res, query);
     if (req.method === 'POST' && url === '/api/logout') return handleLogout(req, res);
     if (req.method === 'POST' && url === '/api/logout-all') return handleLogoutAll(req, res);
-    if (req.method === 'GET' && url === '/api/me') return handleMe(req, res);
-    if (req.method === 'POST' && url === '/api/profile/complete') return handleProfileComplete(req, res);
-    if (req.method === 'POST' && url === '/api/2fa/setup') return handleTotpSetup(req, res);
-    if (req.method === 'POST' && url === '/api/2fa/verify') return handleTotpVerify(req, res);
+    if (req.method === 'GET' && url === '/api/me') return await handleMe(req, res);
+    if (req.method === 'POST' && url === '/api/profile/complete') return await handleProfileComplete(req, res);
+    if (req.method === 'POST' && url === '/api/2fa/setup') return await handleTotpSetup(req, res);
+    if (req.method === 'POST' && url === '/api/2fa/verify') return await handleTotpVerify(req, res);
 
     // wallet del usuario
     if (req.method === 'GET' && url === '/api/purchases') return handlePurchasesList(req, res, query);
-    if (req.method === 'POST' && url === '/api/points/redeem') return handlePointsRedeem(req, res);
+    if (req.method === 'POST' && url === '/api/points/redeem') return await handlePointsRedeem(req, res);
     if (req.method === 'GET' && url === '/api/wallet/spin') return handleSpinStatus(req, res);
     if (req.method === 'POST' && url === '/api/wallet/spin') return handleSpinPlay(req, res);
-    if (req.method === 'POST' && url === '/api/profile/fields') return handleProfileFieldsSubmit(req, res);
-    if (req.method === 'POST' && url === '/api/family/create') return handleFamilyCreate(req, res);
-    if (req.method === 'POST' && url === '/api/family/join') return handleFamilyJoin(req, res);
+    if (req.method === 'POST' && url === '/api/profile/fields') return await handleProfileFieldsSubmit(req, res);
+    if (req.method === 'POST' && url === '/api/family/create') return await handleFamilyCreate(req, res);
+    if (req.method === 'POST' && url === '/api/family/join') return await handleFamilyJoin(req, res);
     if (req.method === 'POST' && url === '/api/family/leave') return handleFamilyLeave(req, res);
-    if (req.method === 'POST' && url === '/api/family/remove-member') return handleFamilyRemoveMember(req, res);
+    if (req.method === 'POST' && url === '/api/family/remove-member') return await handleFamilyRemoveMember(req, res);
     if (req.method === 'GET' && url === '/api/promotions') return handlePromotionsList(req, res);
-    if (req.method === 'POST' && url === '/api/promotions/redeem') return handlePromotionRedeem(req, res);
+    if (req.method === 'POST' && url === '/api/promotions/redeem') return await handlePromotionRedeem(req, res);
     if (req.method === 'GET' && url === '/api/wallet/google-pass') return handleGoogleWalletPass(req, res);
 
     // notificaciones push
     if (req.method === 'GET' && url === '/api/push/vapid-public-key') return handlePushVapidKey(req, res);
-    if (req.method === 'POST' && url === '/api/push/subscribe') return handlePushSubscribe(req, res);
-    if (req.method === 'POST' && url === '/api/push/unsubscribe') return handlePushUnsubscribe(req, res);
+    if (req.method === 'POST' && url === '/api/push/subscribe') return await handlePushSubscribe(req, res);
+    if (req.method === 'POST' && url === '/api/push/unsubscribe') return await handlePushUnsubscribe(req, res);
 
     // admin
-    if (req.method === 'POST' && url === '/api/admin/purchases') return handleAdminPurchaseCreate(req, res);
+    if (req.method === 'POST' && url === '/api/admin/purchases') return await handleAdminPurchaseCreate(req, res);
     if (req.method === 'GET' && url === '/api/admin/purchases') return handleAdminPurchases(req, res, query);
     if (req.method === 'GET' && url === '/api/admin/users') return handleAdminUsers(req, res, query);
-    if (req.method === 'POST' && url === '/api/admin/users/force-logout') return handleAdminForceLogout(req, res);
+    if (req.method === 'POST' && url === '/api/admin/users/force-logout') return await handleAdminForceLogout(req, res);
     if (req.method === 'GET' && url === '/api/admin/referrals') return handleAdminReferrals(req, res, query);
     if (req.method === 'GET' && url === '/api/admin/family-groups') return handleAdminFamilyGroups(req, res, query);
     if (req.method === 'GET' && url === '/api/admin/stats/traffic') return handleAdminTraffic(req, res);
     if (req.method === 'GET' && url === '/api/admin/promotions') return handleAdminPromotionsList(req, res, query);
-    if (req.method === 'POST' && url === '/api/admin/promotions') return handleAdminPromotionCreate(req, res);
+    if (req.method === 'POST' && url === '/api/admin/promotions') return await handleAdminPromotionCreate(req, res);
     if (req.method === 'GET' && url === '/api/admin/promotions/summary') return handleAdminPromotionsSummary(req, res);
     if (req.method === 'GET' && url === '/api/admin/promotions/redeemers') return handleAdminPromotionRedeemers(req, res, query);
     if (req.method === 'GET' && url === '/api/admin/promotions/non-redeemers') return handleAdminPromotionNonRedeemers(req, res, query);
     if (req.method === 'GET' && url === '/api/admin/reports/top-customers') return handleAdminTopCustomers(req, res, query);
     if (req.method === 'GET' && url === '/api/admin/reports/recurring-promo-customers') return handleAdminRecurringPromoCustomers(req, res, query);
-    if (req.method === 'POST' && url === '/api/admin/promotions/deactivate') return handleAdminPromotionDeactivate(req, res);
-    if (req.method === 'POST' && url === '/api/admin/promotions/update') return handleAdminPromotionUpdate(req, res);
-    if (req.method === 'POST' && url === '/api/admin/promotions/delete') return handleAdminPromotionDelete(req, res);
-    if (req.method === 'POST' && url === '/api/admin/promotions/codes') return handleAdminPromotionAddCode(req, res);
+    if (req.method === 'POST' && url === '/api/admin/promotions/deactivate') return await handleAdminPromotionDeactivate(req, res);
+    if (req.method === 'POST' && url === '/api/admin/promotions/update') return await handleAdminPromotionUpdate(req, res);
+    if (req.method === 'POST' && url === '/api/admin/promotions/delete') return await handleAdminPromotionDelete(req, res);
+    if (req.method === 'POST' && url === '/api/admin/promotions/codes') return await handleAdminPromotionAddCode(req, res);
     if (req.method === 'GET' && url === '/api/admin/products') return handleAdminProductsList(req, res, query);
     if (req.method === 'GET' && url === '/api/admin/products/active') return handleAdminProductsActive(req, res);
-    if (req.method === 'POST' && url === '/api/admin/products') return handleAdminProductCreate(req, res);
-    if (req.method === 'POST' && url === '/api/admin/products/deactivate') return handleAdminProductDeactivate(req, res);
-    if (req.method === 'POST' && url === '/api/admin/products/update') return handleAdminProductUpdate(req, res);
-    if (req.method === 'POST' && url === '/api/admin/products/delete') return handleAdminProductDelete(req, res);
+    if (req.method === 'POST' && url === '/api/admin/products') return await handleAdminProductCreate(req, res);
+    if (req.method === 'POST' && url === '/api/admin/products/deactivate') return await handleAdminProductDeactivate(req, res);
+    if (req.method === 'POST' && url === '/api/admin/products/update') return await handleAdminProductUpdate(req, res);
+    if (req.method === 'POST' && url === '/api/admin/products/delete') return await handleAdminProductDelete(req, res);
     if (req.method === 'GET' && url === '/api/admin/profile-fields') return handleAdminProfileFieldsList(req, res);
-    if (req.method === 'POST' && url === '/api/admin/profile-fields') return handleAdminProfileFieldCreate(req, res);
-    if (req.method === 'POST' && url === '/api/admin/profile-fields/update') return handleAdminProfileFieldUpdate(req, res);
-    if (req.method === 'POST' && url === '/api/admin/profile-fields/delete') return handleAdminProfileFieldDelete(req, res);
+    if (req.method === 'POST' && url === '/api/admin/profile-fields') return await handleAdminProfileFieldCreate(req, res);
+    if (req.method === 'POST' && url === '/api/admin/profile-fields/update') return await handleAdminProfileFieldUpdate(req, res);
+    if (req.method === 'POST' && url === '/api/admin/profile-fields/delete') return await handleAdminProfileFieldDelete(req, res);
     if (req.method === 'GET' && url === '/api/admin/export/users.csv') return handleAdminExportUsers(req, res);
     if (req.method === 'GET' && url === '/api/admin/export/purchases.csv') return handleAdminExportPurchases(req, res);
     if (req.method === 'GET' && url === '/api/admin/export/referrals.csv') return handleAdminExportReferrals(req, res);

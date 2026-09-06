@@ -1,5 +1,5 @@
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
 const totp = require('../auth/totp');
 
 test('genera un secreto base32 de 32 caracteres', () => {
