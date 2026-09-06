@@ -599,7 +599,10 @@ test('getPromotionNonRedeemers: excluye a quien canjeó, pagina y busca por nomb
   db.addPromotionCode(promo.id, { code: 'NOCANJE1', label: null, maxUses: null });
   db.redeemPromotionCode('NOCANJE1', redeemer.id);
 
-  const all = db.getPromotionNonRedeemers(promo.id, { limit: 50 });
+  // Con q filtramos a los usuarios de este test — sin esto, "limit: 50" no
+  // alcanza a los usuarios recién creados si el archivo entero ya generó
+  // más de 50 usuarios en tests anteriores (se vuelve flaky con el tiempo).
+  const all = db.getPromotionNonRedeemers(promo.id, { limit: 50, q: 'NoCanjeo' });
   const ids = all.items.map((u: { user_id: number }) => u.user_id);
   assert.ok(ids.includes(pending1.id));
   assert.ok(ids.includes(pending2.id));
