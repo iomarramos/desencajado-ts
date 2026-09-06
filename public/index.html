@@ -5,168 +5,244 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DESENCAJADO — Regístrate para la apertura</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700;800;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
-:root{
-  --yellow:#F5C200; --navy:#0D1B4B; --blue:#1E6FCC; --fuchsia:#FF0077; --bone:#F8F4EB;
-  --grad:linear-gradient(90deg,var(--fuchsia),var(--blue));
-  --fd:'Poppins',system-ui,sans-serif; --fb:'Inter',system-ui,sans-serif;
-}
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:var(--fb);background:var(--bone);color:var(--navy)}
-::selection{background:var(--fuchsia);color:#fff}
+  /* ═══════════════════════════════════════════════════════
+     BRANDING OFICIAL
+     Amarillo Cromo  #FFC61A  (dominante ~60%)
+     Azul Eléctrico  #1E6FCC  (~30% / acento)
+     Fucsia Magenta  #D6218F  (acento)
+     Negro Grafito   #1A1A1A  (texto / secciones)
+     Blanco Puro     #FFFFFF  · Gris Claro #F4F4F4
+  ═══════════════════════════════════════════════════════ */
+  :root{
+    --yellow:#FFC61A; --yellow-deep:#F5B700;
+    --blue:#1E6FCC; --blue-light:#4A9EFF;
+    --fuchsia:#D6218F; --black:#1A1A1A;
+    --white:#FFFFFF; --gray:#F4F4F4;
+    --grad:linear-gradient(135deg,var(--fuchsia) 0%,var(--blue) 100%);
+    --radius:12px; --radius-lg:20px;
+    --fd:'Space Grotesk',sans-serif; --fb:'Poppins',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--white);color:var(--black);font-family:var(--fb);line-height:1.6;overflow-x:hidden}
+  h1,h2,h3,.eyebrow,.badge{font-family:var(--fd)}
+  a{color:var(--blue);text-decoration:none;transition:.3s}
+  a:hover{color:var(--fuchsia)}
+  :focus-visible{outline:3px solid var(--fuchsia);outline-offset:3px;border-radius:4px}
+  ::selection{background:var(--fuchsia);color:#fff}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 5vw}
 
-header{display:flex;justify-content:space-between;align-items:center;padding:1.2rem 5vw;background:var(--navy)}
-.logo{display:flex;align-items:center;gap:.6rem;text-decoration:none;font-family:var(--fd);font-weight:900;
-  font-size:1.1rem;color:#fff}
-.logo svg{width:36px;height:36px}
-.badge{display:inline-flex;align-items:center;gap:.6rem;background:var(--navy);color:var(--yellow);
-  padding:.5rem 1.1rem;border-radius:999px;font-weight:700;font-size:.75rem;letter-spacing:.14em;margin-bottom:1.2rem}
-.badge i{width:8px;height:8px;border-radius:50%;background:var(--fuchsia);box-shadow:0 0 10px var(--fuchsia);animation:pulse 2s infinite}
-@keyframes pulse{50%{opacity:.3}}
+  header{display:flex;justify-content:space-between;align-items:center;padding:1.1rem 5vw;background:var(--black)}
+  .logo{display:flex;align-items:center;gap:.6rem;text-decoration:none;font-family:var(--fd);font-weight:800;font-size:1.1rem;color:var(--yellow)}
+  .logo svg{width:34px;height:34px}
+  .logo:hover{color:var(--yellow)}
+  header a.acct{color:#fff;font-weight:700;font-size:.85rem;opacity:.85}
+  header a.acct:hover{color:var(--yellow);opacity:1}
 
-.hero{display:grid;place-items:center;text-align:center;padding:4rem 5vw 3rem;background:var(--yellow);
-  background-image:repeating-linear-gradient(-45deg,rgba(13,27,75,.045) 0 2px,transparent 2px 26px)}
-h1{font-family:var(--fd);font-weight:900;font-size:clamp(2.2rem,5.6vw,3.6rem);line-height:1.08;letter-spacing:-.01em;max-width:16ch}
-h1 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-.sub{margin:1.1rem auto 0;font-size:clamp(1rem,2vw,1.2rem);font-weight:600;max-width:52ch}
-.sub b{background:var(--fuchsia);color:#fff;padding:.1em .45em;border-radius:8px;display:inline-block}
-.loc{margin-top:1rem;font-weight:600;font-size:.9rem;opacity:.8}
+  /* ---------- HERO (fachada amarilla) ---------- */
+  .hero{background:var(--yellow);padding:70px 0 60px;position:relative;overflow:hidden;
+    background-image:repeating-linear-gradient(-45deg,rgba(26,26,26,.05) 0 2px,transparent 2px 26px)}
+  .hero .wrap{position:relative;z-index:2;text-align:center}
+  .doodle{position:absolute;z-index:1;animation:float 6s ease-in-out infinite}
+  .doodle.d2{animation-duration:7.5s;animation-delay:.8s}
+  .doodle.d3{animation-duration:5.2s;animation-delay:.4s}
+  @keyframes float{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-14px) rotate(4deg)}}
 
-.cd{display:flex;gap:.8rem;justify-content:center;margin-top:1.8rem;flex-wrap:wrap}
-.cd div{background:var(--navy);color:#fff;border-radius:14px;padding:.7rem .9rem;min-width:72px;text-align:center;
-  border-bottom:4px solid var(--fuchsia)}
-.cd b{display:block;font-family:var(--fd);font-size:1.5rem;font-weight:900;color:var(--yellow)}
-.cd span{font-size:.62rem;letter-spacing:.18em;font-weight:700}
+  .badge{display:inline-flex;align-items:center;gap:.6rem;font-size:.8rem;font-weight:800;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--black);background:var(--white);padding:8px 16px;border-radius:999px;
+    border:2px solid var(--black);margin-bottom:20px;transform:rotate(-1.5deg)}
+  .badge i{width:8px;height:8px;border-radius:50%;background:var(--fuchsia);box-shadow:0 0 10px var(--fuchsia);animation:pulse 2s infinite}
+  @keyframes pulse{50%{opacity:.3}}
 
-.counter{display:inline-flex;align-items:center;gap:.5rem;margin-top:1.6rem;background:var(--navy);color:var(--yellow);
-  padding:.6rem 1.2rem;border-radius:999px;font-weight:700;font-size:.85rem}
+  .box-frame{border:3px dashed var(--black);border-radius:var(--radius-lg);padding:44px 30px 46px;
+    position:relative;margin-top:6px;background:rgba(255,255,255,.35);display:inline-block;max-width:44rem}
+  h1{font-family:var(--fd);font-weight:900;font-size:clamp(2.2rem,6.5vw,3.4rem);line-height:1.28;letter-spacing:-1px;
+    color:var(--black);text-shadow:3px 3px 0 var(--blue),6px 6px 0 var(--fuchsia)}
+  h1 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
+  .sub{font-size:1.05rem;color:var(--black);margin:22px auto 0;max-width:46ch;font-weight:600;line-height:1.7}
+  .sub b{background:var(--black);color:var(--yellow);padding:.1em .45em;border-radius:8px;display:inline-block}
+  .loc{margin-top:12px;font-weight:600;font-size:.9rem;opacity:.75}
 
-/* ═══ REGISTRO ═══ */
-.reg{max-width:1100px;margin:0 auto;padding:4.5rem 5vw;display:grid;grid-template-columns:.85fr 1.15fr;gap:3rem;align-items:start}
-.kicker{font-size:.72rem;font-weight:800;letter-spacing:.28em;color:var(--fuchsia);text-transform:uppercase}
-h2{font-family:var(--fd);font-weight:900;font-size:clamp(1.6rem,3.4vw,2.3rem);margin:.5rem 0 1rem;letter-spacing:-.01em}
-h2::after{content:'';display:block;width:70px;height:5px;background:var(--grad);border-radius:4px;margin-top:.7rem}
-.reg p.pitch{line-height:1.7;max-width:56ch;color:var(--navy);opacity:.85}
+  .cd{display:flex;gap:.8rem;justify-content:center;margin-top:1.8rem;flex-wrap:wrap}
+  .cd div{background:var(--black);color:#fff;border-radius:14px;padding:.7rem .9rem;min-width:72px;text-align:center;
+    border-bottom:4px solid var(--fuchsia)}
+  .cd b{display:block;font-family:var(--fd);font-size:1.5rem;font-weight:800;color:var(--yellow)}
+  .cd span{font-size:.62rem;letter-spacing:.18em;font-weight:700}
 
-.ticket{width:230px;margin:0 auto;background:var(--yellow);border-radius:18px;padding:1.6rem 1.2rem 0;position:relative;
-  transform:rotate(-4deg);box-shadow:0 24px 50px -20px rgba(13,27,75,.5);transition:.4s;text-align:center}
-.ticket:hover{transform:rotate(0) scale(1.04)}
-.ticket::before{content:'';position:absolute;top:14px;left:50%;transform:translateX(-50%);width:26px;height:26px;
-  background:var(--navy);border-radius:50%}
-.ticket h3{font-family:var(--fd);font-weight:900;font-size:1.1rem;margin:1.2rem 0 .3rem}
-.ticket p{font-size:.8rem;font-weight:600}
-.ticket .cupon{margin:1.2rem -1.2rem 0;background:var(--fuchsia);color:#fff;padding:1rem;border-top:3px dashed var(--navy);border-radius:0 0 18px 18px}
-.ticket .cupon b{font-family:var(--fd);font-size:1.4rem;font-weight:900;display:block}
-.ticket .cupon small{font-size:.65rem;letter-spacing:.1em}
+  .counter{display:inline-flex;align-items:center;gap:.5rem;margin-top:1.6rem;background:var(--black);color:var(--yellow);
+    padding:.6rem 1.2rem;border-radius:999px;font-weight:700;font-size:.85rem}
 
-form{display:grid;gap:1rem;margin-top:1.8rem}
-.field{display:grid;gap:.35rem}
-label{font-weight:700;font-size:.85rem}
-input{padding:1rem 1.3rem;border-radius:14px;border:2px solid rgba(13,27,75,.2);background:#fff;font-family:var(--fb);font-size:1rem;transition:.3s}
-input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 4px rgba(30,111,204,.18)}
-input.invalid{border-color:var(--fuchsia)}
-.err{color:var(--fuchsia);font-size:.78rem;font-weight:600;min-height:1.1em}
-.hint{font-size:.76rem;opacity:.6}
-.radios{display:flex;gap:1.5rem;font-weight:600;flex-wrap:wrap;align-items:center}
-.radios label{display:flex;gap:.5rem;align-items:center;cursor:pointer;font-weight:600}
-.radios input{width:auto;accent-color:var(--fuchsia);padding:0}
-.btn{display:inline-block;padding:1rem 1.8rem;border-radius:999px;font-family:var(--fd);font-weight:700;
-  font-size:.95rem;text-decoration:none;border:none;cursor:pointer;transition:.3s;background:var(--grad);color:#fff;
-  box-shadow:0 10px 26px -10px rgba(255,0,119,.55)}
-.btn:hover{transform:translateY(-3px) scale(1.02)}
-.btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+  /* ---------- MARQUEE ---------- */
+  .marquee{overflow:hidden;background:var(--black);border-block:4px solid var(--fuchsia)}
+  .mq{display:flex;gap:2.6rem;width:max-content;padding:.85rem 0;animation:mq 24s linear infinite}
+  .mq span{font-family:var(--fd);font-weight:800;letter-spacing:.14em;color:var(--yellow);white-space:nowrap;font-size:.85rem}
+  .mq em{font-style:normal;color:var(--fuchsia)}
+  .mq i{font-style:normal;color:var(--blue-light)}
+  @keyframes mq{to{transform:translateX(-50%)}}
 
-.msg{display:none;margin-top:1.2rem;border-radius:16px;padding:1.1rem 1.4rem;font-weight:600;line-height:1.6}
-.msg.show{display:block}
-.msg.ok{background:var(--navy);color:#fff;border-left:6px solid var(--yellow)}
-.msg.error{background:#fff0f6;color:var(--fuchsia);border-left:6px solid var(--fuchsia)}
+  /* ---------- SECCIONES ---------- */
+  section{padding:64px 0}
+  .kicker{font-size:.75rem;font-weight:800;letter-spacing:.24em;color:var(--fuchsia);text-transform:uppercase}
+  h2{font-family:var(--fd);font-weight:800;font-size:clamp(1.6rem,3.4vw,2.2rem);margin:.5rem 0 1rem;letter-spacing:-.5px;color:var(--black)}
+  .pitch{line-height:1.7;max-width:56ch;color:#4a4a4a}
 
-@media(max-width:900px){.reg{grid-template-columns:1fr}}
+  /* ---------- REGISTRO ---------- */
+  .reg{background:var(--white);
+    background-image:linear-gradient(rgba(30,111,204,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(30,111,204,.06) 1px,transparent 1px);
+    background-size:36px 36px}
+  .reg .wrap{max-width:1100px;display:grid;grid-template-columns:.85fr 1.15fr;gap:3rem;align-items:start}
 
-footer{background:#081130;color:rgba(255,255,255,.7);padding:2rem 5vw;text-align:center;font-size:.85rem}
+  .ticket{width:230px;margin:0 auto;background:var(--yellow);border:3px solid var(--black);border-radius:var(--radius-lg);
+    padding:1.6rem 1.2rem 0;position:relative;transform:rotate(-4deg);box-shadow:8px 8px 0 var(--black);transition:.4s;text-align:center}
+  .ticket:hover{transform:rotate(0) scale(1.04)}
+  .ticket::before{content:'';position:absolute;top:14px;left:50%;transform:translateX(-50%);width:26px;height:26px;background:var(--black);border-radius:50%}
+  .ticket h3{font-family:var(--fd);font-weight:800;font-size:1.1rem;margin:1.2rem 0 .3rem}
+  .ticket p{font-size:.8rem;font-weight:600}
+  .ticket .cupon{margin:1.2rem -1.2rem 0;background:var(--black);color:var(--yellow);padding:1rem;border-top:3px dashed var(--fuchsia);border-radius:0 0 16px 16px}
+  .ticket .cupon b{font-family:var(--fd);font-size:1.4rem;font-weight:800;display:block;color:var(--yellow)}
+  .ticket .cupon small{font-size:.65rem;letter-spacing:.1em;color:#fff}
 
-/* ═══ POPUP de promoción ═══ */
-.modal-backdrop{position:fixed;inset:0;background:rgba(13,27,75,.6);display:none;align-items:center;justify-content:center;
-  padding:1.5rem;z-index:50}
-.modal-backdrop.show{display:flex}
-.modal-promo{background:#fff;border-radius:20px;max-width:420px;width:100%;overflow:hidden;box-shadow:0 30px 70px -20px rgba(13,27,75,.6)}
-.modal-promo img{width:100%;height:180px;object-fit:cover;display:block}
-.modal-promo .inner{padding:1.6rem}
-.modal-promo h3{font-family:var(--fd);font-weight:900;font-size:1.3rem;margin:.4rem 0}
-.modal-promo p{line-height:1.6}
-.modal-promo .vigencia{font-size:.78rem;opacity:.65;margin-top:.5rem}
-.chip{display:inline-block;padding:.15rem .6rem;border-radius:999px;background:var(--bone);font-size:.72rem;font-weight:700;margin:.3rem .3rem 0 0}
-.modal-promo .actions{display:flex;justify-content:flex-end;gap:.7rem;margin-top:1.4rem}
-.btn.ghost{background:none;color:var(--navy);border:2px solid rgba(13,27,75,.2);box-shadow:none}
-.btn.small{padding:.6rem 1.2rem;font-size:.85rem}
+  .card{background:var(--white);border:3px solid var(--black);border-radius:var(--radius-lg);padding:32px 28px;
+    box-shadow:10px 10px 0 var(--yellow);position:relative;overflow:hidden}
+  .card::before{content:'';position:absolute;top:0;left:0;right:0;height:6px;background:var(--grad)}
+  form{display:grid;gap:1rem;margin-top:1.6rem}
+  .field{display:grid;gap:.35rem}
+  label{font-weight:700;font-size:.85rem;color:var(--black)}
+  input{padding:14px 16px;border:2px solid #DDD;border-radius:var(--radius);background:var(--gray);
+    font-family:inherit;font-size:1rem;color:var(--black);transition:.3s}
+  input:focus{outline:none;border-color:var(--fuchsia);background:var(--white);box-shadow:0 0 0 4px rgba(214,33,143,.12)}
+  input.invalid{border-color:var(--fuchsia)}
+  .err{color:var(--fuchsia);font-size:.78rem;font-weight:600;min-height:1.1em}
+  .hint{font-size:.76rem;opacity:.6}
+  .radios{display:flex;gap:1.5rem;font-weight:600;flex-wrap:wrap;align-items:center}
+  .radios label{display:flex;gap:.5rem;align-items:center;cursor:pointer;font-weight:600}
+  .radios input{width:auto;accent-color:var(--fuchsia);padding:0}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:16px 32px;border-radius:50px;font-family:var(--fd);
+    font-weight:800;font-size:1rem;text-decoration:none;border:none;cursor:pointer;transition:.3s;
+    background:var(--black);color:var(--yellow);box-shadow:6px 6px 0 var(--fuchsia)}
+  .btn:hover:not(:disabled){transform:translate(-2px,-4px);box-shadow:9px 10px 0 var(--blue)}
+  .btn:disabled{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none;background:#CCC;color:#888}
+  .btn.ghost{background:transparent;color:var(--black);border:2px solid var(--black);box-shadow:none}
+  .btn.ghost:hover{background:var(--black);color:var(--yellow)}
+  .btn.small{padding:10px 20px;font-size:.85rem}
+
+  .msg{display:none;margin-top:1.2rem;border-radius:var(--radius);padding:1.1rem 1.4rem;font-weight:600;line-height:1.6}
+  .msg.show{display:block}
+  .msg.ok{background:var(--black);color:#fff;border-left:6px solid var(--yellow)}
+  .msg.error{background:#fff0f6;color:var(--fuchsia);border-left:6px solid var(--fuchsia)}
+
+  @media(max-width:900px){.reg .wrap{grid-template-columns:1fr}}
+
+  footer{background:var(--black);color:rgba(255,255,255,.75);padding:40px 5vw 28px;text-align:center;font-size:.85rem;position:relative}
+  footer::before{content:'';position:absolute;top:0;left:0;right:0;height:6px;background:var(--grad)}
+
+  /* ---------- POPUP de promoción ---------- */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(26,26,26,.65);display:none;align-items:center;justify-content:center;padding:1.5rem;z-index:50}
+  .modal-backdrop.show{display:flex}
+  .modal-promo{background:#fff;border:3px solid var(--black);border-radius:var(--radius-lg);max-width:420px;width:100%;overflow:hidden;box-shadow:10px 10px 0 var(--fuchsia)}
+  .modal-promo img{width:100%;height:180px;object-fit:cover;display:block}
+  .modal-promo .inner{padding:1.6rem}
+  .modal-promo h3{font-family:var(--fd);font-weight:800;font-size:1.3rem;margin:.4rem 0}
+  .modal-promo p{line-height:1.6}
+  .modal-promo .vigencia{font-size:.78rem;opacity:.65;margin-top:.5rem}
+  .chip{display:inline-block;padding:.15rem .6rem;border-radius:999px;background:var(--gray);font-size:.72rem;font-weight:700;margin:.3rem .3rem 0 0}
+  .modal-promo .actions{display:flex;justify-content:flex-end;gap:.7rem;margin-top:1.4rem}
+
+  @media(max-width:640px){
+    .box-frame{padding:34px 20px 38px}
+    h2{font-size:1.6rem}
+    .card{padding:24px 20px}
+    .doodle{display:none}
+  }
 </style>
 </head>
 <body>
 
 <header>
   <a class="logo" href="/">
-    <svg viewBox="0 0 60 60"><circle cx="22" cy="22" r="13" fill="#1E6FCC"/><circle cx="38" cy="22" r="13" fill="#FF0077"/><circle cx="30" cy="16" r="10" fill="#1E6FCC"/><circle cx="34" cy="14" r="8" fill="#FF0077"/><rect x="17" y="20" width="12" height="9" rx="3" fill="#0D1B4B"/><rect x="31" y="20" width="12" height="9" rx="3" fill="#0D1B4B"/><path d="M14 40 L46 40 L42 56 L18 56 Z" fill="#1E6FCC" stroke="#F5C200" stroke-width="2.5"/></svg>
+    <svg viewBox="0 0 60 60"><circle cx="22" cy="22" r="13" fill="#1E6FCC"/><circle cx="38" cy="22" r="13" fill="#D6218F"/><circle cx="30" cy="16" r="10" fill="#1E6FCC"/><circle cx="34" cy="14" r="8" fill="#D6218F"/><rect x="17" y="20" width="12" height="9" rx="3" fill="#1A1A1A"/><rect x="31" y="20" width="12" height="9" rx="3" fill="#1A1A1A"/><path d="M14 40 L46 40 L42 56 L18 56 Z" fill="#1E6FCC" stroke="#FFC61A" stroke-width="2.5"/></svg>
     DESENCAJADO
   </a>
-  <a href="/cuenta.html" style="color:#fff;font-weight:700;font-size:.85rem;text-decoration:none;opacity:.85">Ya soy cliente → Mi cuenta</a>
+  <a href="/cuenta.html" class="acct">Ya soy cliente → Mi cuenta</a>
 </header>
 
-<section class="hero">
-  <span class="badge"><i></i> APERTURA OFICIAL · 29 OCT 2026 · HUARAZ</span>
-  <h1>Sé de los primeros en <span class="grad">pensar fuera de la caja.</span></h1>
-  <p class="sub">Regístrate para la apertura y asegura tu <b>Frappé de Lúcuma gratis</b>.</p>
-  <p class="loc">📍 Av. Centenario, Huaraz — frente a la UNASAM</p>
-  <div class="cd" aria-label="Cuenta regresiva a la apertura">
-    <div><b id="cd-d">--</b><span>DÍAS</span></div>
-    <div><b id="cd-h">--</b><span>HORAS</span></div>
-    <div><b id="cd-m">--</b><span>MIN</span></div>
-    <div><b id="cd-s">--</b><span>SEG</span></div>
-  </div>
-  <div class="counter">🧠 <span id="counter-text">Cargando personas registradas…</span></div>
-</section>
+<div class="hero">
+  <svg class="doodle" style="top:10%;left:6%" width="40" height="60" viewBox="0 0 40 60"><path d="M24 0 L4 30 h12 L10 60 L36 24 H22 L32 0 Z" fill="#fff"/></svg>
+  <svg class="doodle d2" style="top:14%;right:7%" width="56" height="48" viewBox="0 0 56 48"><path d="M2 26 L54 6 L30 46 L24 30 Z" fill="#1E6FCC"/></svg>
+  <svg class="doodle d3" style="bottom:12%;left:8%" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="14" fill="none" stroke="#D6218F" stroke-width="9" stroke-dasharray="8 5"/></svg>
 
-<section class="reg">
-  <div>
-    <div class="ticket" aria-hidden="true">
-      <h3>DESENCAJADO</h3>
-      <p>PAPAS Y CAFÉ<br>"Mentes diferentes,<br>ideas extraordinarias."</p>
-      <div class="cupon"><b>FRAPPÉ GRATIS</b><small>PARA LOS PRIMEROS INSCRITOS</small></div>
+  <div class="wrap">
+    <span class="badge"><i></i> APERTURA OFICIAL · 29 OCT 2026 · HUARAZ</span>
+    <div class="box-frame">
+      <h1>Sé de los primeros en <span class="grad">pensar fuera de la caja.</span></h1>
+      <p class="sub">Regístrate para la apertura y asegura tu <b>Frappé de Lúcuma gratis</b>.</p>
+      <p class="loc">📍 Av. Centenario, Huaraz — frente a la UNASAM</p>
+      <div class="cd" aria-label="Cuenta regresiva a la apertura">
+        <div><b id="cd-d">--</b><span>DÍAS</span></div>
+        <div><b id="cd-h">--</b><span>HORAS</span></div>
+        <div><b id="cd-m">--</b><span>MIN</span></div>
+        <div><b id="cd-s">--</b><span>SEG</span></div>
+      </div>
+      <div class="counter">🧠 <span id="counter-text">Cargando personas registradas…</span></div>
     </div>
   </div>
-  <div>
-    <span class="kicker">// Pre-apertura</span>
-    <h2>REGÍSTRATE PARA LA APERTURA</h2>
-    <p class="pitch">Déjanos tus datos y te avisamos primero — antes que nadie — cuándo abrimos y qué promo de lanzamiento tenemos preparada.</p>
+</div>
 
-    <form id="form" novalidate>
-      <div class="field">
-        <label for="f-nombre">Nombre completo</label>
-        <input type="text" id="f-nombre" name="nombre" autocomplete="name" required minlength="2" maxlength="100">
-        <span class="err" id="err-nombre"></span>
+<div class="marquee" aria-hidden="true">
+  <div class="mq">
+    <span>MENTES DIFERENTES</span><span><em>✦</em> IDEAS EXTRAORDINARIAS</span><span><i>✦</i> PAPAS Y CAFÉ</span><span>SI NO ENCAJAS, ESTÁS EN EL LUGAR CORRECTO</span><span><em>✦</em> HUARAZ · FRENTE A UNASAM</span>
+    <span>MENTES DIFERENTES</span><span><em>✦</em> IDEAS EXTRAORDINARIAS</span><span><i>✦</i> PAPAS Y CAFÉ</span><span>SI NO ENCAJAS, ESTÁS EN EL LUGAR CORRECTO</span><span><em>✦</em> HUARAZ · FRENTE A UNASAM</span>
+  </div>
+</div>
+
+<section class="reg" id="registro">
+  <div class="wrap">
+    <div>
+      <div class="ticket" aria-hidden="true">
+        <h3>DESENCAJADO</h3>
+        <p>PAPAS Y CAFÉ<br>"Mentes diferentes,<br>ideas extraordinarias."</p>
+        <div class="cupon"><b>FRAPPÉ GRATIS</b><small>PARA LOS PRIMEROS INSCRITOS</small></div>
       </div>
-      <div class="field">
-        <label for="f-telefono">Teléfono (celular)</label>
-        <input type="tel" id="f-telefono" name="telefono" autocomplete="tel" placeholder="9XXXXXXXX" required inputmode="numeric">
-        <span class="hint">Celular peruano de 9 dígitos, empieza con 9.</span>
-        <span class="err" id="err-telefono"></span>
+    </div>
+    <div>
+      <span class="kicker">// Pre-apertura</span>
+      <h2>REGÍSTRATE PARA LA APERTURA</h2>
+      <p class="pitch">Déjanos tus datos y te avisamos primero — antes que nadie — cuándo abrimos y qué promo de lanzamiento tenemos preparada.</p>
+
+      <div class="card">
+        <form id="form" novalidate>
+          <div class="field">
+            <label for="f-nombre">Nombre completo</label>
+            <input type="text" id="f-nombre" name="nombre" autocomplete="name" required minlength="2" maxlength="100">
+            <span class="err" id="err-nombre"></span>
+          </div>
+          <div class="field">
+            <label for="f-telefono">Teléfono (celular)</label>
+            <input type="tel" id="f-telefono" name="telefono" autocomplete="tel" placeholder="9XXXXXXXX" required inputmode="numeric">
+            <span class="hint">Celular peruano de 9 dígitos, empieza con 9.</span>
+            <span class="err" id="err-telefono"></span>
+          </div>
+          <div class="field">
+            <label for="f-dni">DNI</label>
+            <input type="text" id="f-dni" name="dni" placeholder="12345678" required inputmode="numeric" maxlength="8">
+            <span class="hint">8 dígitos, sin puntos ni espacios.</span>
+            <span class="err" id="err-dni"></span>
+          </div>
+          <div class="field">
+            <div class="radios">
+              <span style="font-weight:700">¿Eres estudiante UNASAM?</span>
+              <label><input type="radio" name="unasam" value="Sí" checked> Sí</label>
+              <label><input type="radio" name="unasam" value="No"> No</label>
+            </div>
+          </div>
+          <button class="btn" type="submit" id="submit-btn">Quiero mi lugar 🧠</button>
+        </form>
+        <div class="msg" id="msg"></div>
       </div>
-      <div class="field">
-        <label for="f-dni">DNI</label>
-        <input type="text" id="f-dni" name="dni" placeholder="12345678" required inputmode="numeric" maxlength="8">
-        <span class="hint">8 dígitos, sin puntos ni espacios.</span>
-        <span class="err" id="err-dni"></span>
-      </div>
-      <div class="field">
-        <div class="radios">
-          <span style="font-weight:700">¿Eres estudiante UNASAM?</span>
-          <label><input type="radio" name="unasam" value="Sí" checked> Sí</label>
-          <label><input type="radio" name="unasam" value="No"> No</label>
-        </div>
-      </div>
-      <button class="btn" type="submit" id="submit-btn">Quiero mi lugar 🧠</button>
-    </form>
-    <div class="msg" id="msg"></div>
+    </div>
   </div>
 </section>
 

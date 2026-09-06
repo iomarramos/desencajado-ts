@@ -6,12 +6,13 @@
 <title>DESENCAJADO — Mi cuenta</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700;800;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;700;800;900&display=swap" rel="stylesheet">
 <style>
 :root{
-  --yellow:#F5C200; --navy:#0D1B4B; --blue:#1E6FCC; --fuchsia:#FF0077; --bone:#F8F4EB; --green:#1FA97E;
-  --grad:linear-gradient(90deg,var(--fuchsia),var(--blue));
-  --fd:'Poppins',system-ui,sans-serif; --fb:'Inter',system-ui,sans-serif;
+  /* Amarillo Cromo · Azul Eléctrico · Fucsia Magenta · Negro Grafito */
+  --yellow:#FFC61A; --navy:#1A1A1A; --blue:#1E6FCC; --fuchsia:#D6218F; --bone:#F4F4F4;
+  --grad:linear-gradient(135deg,var(--fuchsia) 0%,var(--blue) 100%);
+  --fd:'Space Grotesk',sans-serif; --fb:'Poppins',sans-serif;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:var(--fb);background:var(--bone);color:var(--navy);min-height:100vh}
@@ -24,35 +25,35 @@ header{display:flex;justify-content:space-between;align-items:center;padding:1.2
 .tag{color:var(--yellow);font-weight:700;font-size:.8rem}
 
 main{max-width:760px;margin:0 auto;padding:2rem 5vw 5rem}
-.card{background:#fff;border-radius:22px;padding:2.2rem;box-shadow:0 20px 50px -30px rgba(13,27,75,.35);margin-bottom:1.4rem;
+.card{background:#fff;border:3px solid var(--navy);border-radius:22px;padding:2.2rem;box-shadow:8px 8px 0 var(--yellow);margin-bottom:1.4rem;
   animation:rise .4s ease both}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .kicker{font-size:.72rem;font-weight:800;letter-spacing:.24em;color:var(--fuchsia);text-transform:uppercase}
 h1{font-family:var(--fd);font-weight:900;font-size:clamp(1.6rem,3.4vw,2.2rem);margin:.4rem 0 1rem}
 p.lead{line-height:1.7;opacity:.85;max-width:56ch}
 
-.btn{display:inline-flex;align-items:center;gap:.6rem;padding:1rem 1.8rem;border-radius:999px;font-family:var(--fd);font-weight:700;
-  font-size:.95rem;text-decoration:none;border:none;cursor:pointer;transition:.25s;background:var(--grad);color:#fff;
-  box-shadow:0 10px 26px -10px rgba(255,0,119,.55)}
-.btn:hover{transform:translateY(-3px) scale(1.02)}
+.btn{display:inline-flex;align-items:center;gap:.6rem;padding:1rem 1.8rem;border-radius:999px;font-family:var(--fd);font-weight:800;
+  font-size:.95rem;text-decoration:none;border:none;cursor:pointer;transition:.25s;background:var(--navy);color:var(--yellow);
+  box-shadow:5px 5px 0 var(--fuchsia)}
+.btn:hover:not(:disabled){transform:translate(-1px,-2px);box-shadow:7px 8px 0 var(--blue)}
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
 .btn.spinning{animation:spinbtn .7s linear}
 @keyframes spinbtn{to{transform:rotate(360deg)}}
-.btn.ghost{background:none;box-shadow:none;color:var(--navy);border:2px solid rgba(13,27,75,.2)}
-.btn.google{background:#fff;color:#1f1f1f;border:2px solid rgba(13,27,75,.15);box-shadow:none}
-.btn.small{padding:.55rem 1.1rem;font-size:.8rem}
+.btn.ghost{background:none;box-shadow:none;color:var(--navy);border:2px solid rgba(26,26,26,.4)}
+.btn.google{background:#fff;color:#1f1f1f;border:2px solid rgba(26,26,26,.15);box-shadow:none}
+.btn.small{padding:.55rem 1.1rem;font-size:.8rem;box-shadow:3px 3px 0 var(--fuchsia)}
 .btn.wallet{background:#000;color:#fff;box-shadow:none;padding:.7rem 1.4rem}
 
-.spinner{width:34px;height:34px;border-radius:50%;border:4px solid rgba(13,27,75,.15);border-top-color:var(--fuchsia);
+.spinner{width:34px;height:34px;border-radius:50%;border:4px solid rgba(26,26,26,.15);border-top-color:var(--fuchsia);
   animation:spin .8s linear infinite;margin:3rem auto}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 .qr-box{display:flex;flex-direction:column;align-items:center;gap:1rem;margin:1.6rem 0}
-#qr-canvas{padding:.8rem;background:#fff;border-radius:16px;border:2px solid rgba(13,27,75,.12)}
+#qr-canvas{padding:.8rem;background:#fff;border-radius:16px;border:2px solid rgba(26,26,26,.12)}
 .secret{font-family:monospace;background:var(--bone);padding:.6rem 1rem;border-radius:10px;letter-spacing:.08em;font-size:.9rem;word-break:break-all}
 
 .otp-row{display:flex;gap:.8rem;margin-top:1.2rem;flex-wrap:wrap}
-input.otp{padding:1rem 1.3rem;border-radius:14px;border:2px solid rgba(13,27,75,.2);font-size:1.3rem;letter-spacing:.3em;
+input.otp{padding:1rem 1.3rem;border-radius:14px;border:2px solid rgba(26,26,26,.2);font-size:1.3rem;letter-spacing:.3em;
   font-family:monospace;width:180px;text-align:center}
 input.otp:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 4px rgba(30,111,204,.18)}
 
@@ -81,7 +82,7 @@ h2{font-family:var(--fd);font-weight:900;font-size:1.2rem;margin-bottom:.8rem}
 .reward-ready.show{display:block}
 
 table{width:100%;border-collapse:collapse;font-size:.88rem}
-th,td{text-align:left;padding:.6rem .4rem;border-bottom:1px solid rgba(13,27,75,.1)}
+th,td{text-align:left;padding:.6rem .4rem;border-bottom:1px solid rgba(26,26,26,.1)}
 th{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;opacity:.6}
 .empty{opacity:.6;font-size:.9rem;padding:1rem 0}
 
@@ -90,7 +91,7 @@ th{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;opacity:.6}
 
 .field{display:grid;gap:.35rem;margin-bottom:.9rem}
 label{font-weight:700;font-size:.85rem}
-input[type=text],input[type=number]{padding:.9rem 1.2rem;border-radius:14px;border:2px solid rgba(13,27,75,.2);font-family:var(--fb);font-size:1rem}
+input[type=text],input[type=number]{padding:.9rem 1.2rem;border-radius:14px;border:2px solid rgba(26,26,26,.2);font-family:var(--fb);font-size:1rem}
 .msg{margin-top:1rem;border-radius:14px;padding:.9rem 1.2rem;font-weight:600;font-size:.9rem;display:none}
 .msg.show{display:block}
 .msg.ok{background:var(--navy);color:#fff;border-left:6px solid var(--yellow)}
@@ -107,7 +108,7 @@ input[type=text],input[type=number]{padding:.9rem 1.2rem;border-radius:14px;bord
 .promo .chip{display:inline-block;padding:.1rem .5rem;border-radius:999px;background:rgba(255,255,255,.15);font-size:.68rem;margin:.3rem .3rem 0 0}
 .promo-close{background:none;border:none;color:var(--yellow);font-size:1.1rem;cursor:pointer;line-height:1;flex-shrink:0}
 
-.modal-backdrop{position:fixed;inset:0;background:rgba(13,27,75,.55);display:none;align-items:center;justify-content:center;
+.modal-backdrop{position:fixed;inset:0;background:rgba(26,26,26,.55);display:none;align-items:center;justify-content:center;
   padding:1.5rem;z-index:50}
 .modal-backdrop.show{display:flex}
 .modal{background:#fff;border-radius:20px;padding:2rem;max-width:400px;width:100%}
@@ -127,7 +128,7 @@ footer{background:#081130;color:rgba(255,255,255,.7);padding:2rem 5vw;text-align
 
 <header>
   <a class="logo" href="/">
-    <svg viewBox="0 0 60 60"><circle cx="22" cy="22" r="13" fill="#1E6FCC"/><circle cx="38" cy="22" r="13" fill="#FF0077"/><circle cx="30" cy="16" r="10" fill="#1E6FCC"/><circle cx="34" cy="14" r="8" fill="#FF0077"/><rect x="17" y="20" width="12" height="9" rx="3" fill="#0D1B4B"/><rect x="31" y="20" width="12" height="9" rx="3" fill="#0D1B4B"/><path d="M14 40 L46 40 L42 56 L18 56 Z" fill="#1E6FCC" stroke="#F5C200" stroke-width="2.5"/></svg>
+    <svg viewBox="0 0 60 60"><circle cx="22" cy="22" r="13" fill="#1E6FCC"/><circle cx="38" cy="22" r="13" fill="#D6218F"/><circle cx="30" cy="16" r="10" fill="#1E6FCC"/><circle cx="34" cy="14" r="8" fill="#D6218F"/><rect x="17" y="20" width="12" height="9" rx="3" fill="#1A1A1A"/><rect x="31" y="20" width="12" height="9" rx="3" fill="#1A1A1A"/><path d="M14 40 L46 40 L42 56 L18 56 Z" fill="#1E6FCC" stroke="#FFC61A" stroke-width="2.5"/></svg>
     DESENCAJADO
   </a>
   <span class="tag">Mi cuenta</span>
