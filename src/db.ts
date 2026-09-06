@@ -211,6 +211,10 @@ ensureColumn('users', 'wallet_saved_at', 'TEXT');
 ensureColumn('users', 'last_spin_at', 'TEXT');
 ensureColumn('users', 'dni', 'TEXT');
 ensureColumn('users', 'telefono', 'TEXT');
+// De dónde se registró el cliente ('web' = landing normal, 'local' = escaneó
+// el QR físico del negocio) — puramente informativo para reportes, nunca
+// cambia después del primer registro.
+ensureColumn('users', 'signup_source', "TEXT NOT NULL DEFAULT 'web'");
 
 // Único entre quienes ya lo llenaron: SQLite no deja agregar UNIQUE en un
 // ALTER TABLE ADD COLUMN, así que va como índice parcial aparte. Permite
@@ -266,6 +270,7 @@ export interface User {
   last_spin_at: string | null;
   dni: string | null;
   telefono: string | null;
+  signup_source: string;
 }
 
 export interface Session {
@@ -434,8 +439,8 @@ const getUserByIdStmt = db.prepare('SELECT * FROM users WHERE id = ?');
 const getUserByEmailStmt = db.prepare('SELECT * FROM users WHERE email = ?');
 const getUserByReferralCodeStmt = db.prepare('SELECT * FROM users WHERE referral_code = ?');
 const insertUserStmt = db.prepare(
-  `INSERT INTO users (google_id, email, name, avatar_url, referral_code)
-   VALUES (?, ?, ?, ?, ?)`
+  `INSERT INTO users (google_id, email, name, avatar_url, referral_code, signup_source)
+   VALUES (?, ?, ?, ?, ?, ?)`
 );
 const updateUserProfileStmt = db.prepare(
   'UPDATE users SET name = ?, avatar_url = ? WHERE id = ?'
@@ -454,11 +459,13 @@ function upsertGoogleUser({
   email,
   name,
   avatarUrl,
+  source,
 }: {
   googleId: string;
   email: string;
   name: string;
   avatarUrl?: string | null;
+  source?: string | null;
 }): User {
   const cleanEmail = String(email || '').trim().toLowerCase();
   const existing = getUserByGoogleIdStmt.get(googleId) as unknown as User | undefined;
@@ -470,7 +477,10 @@ function upsertGoogleUser({
   do {
     referralCode = randomCode(8);
   } while (getUserByReferralCodeStmt.get(referralCode));
-  const info = insertUserStmt.run(googleId, cleanEmail, name, avatarUrl || null, referralCode);
+  // `source` solo se guarda al CREAR la cuenta — es de dónde vino su primer
+  // registro (QR del local vs. web normal), no algo que deba cambiar después.
+  const cleanSource = source === 'local' ? 'local' : 'web';
+  const info = insertUserStmt.run(googleId, cleanEmail, name, avatarUrl || null, referralCode, cleanSource);
   return getUserByIdStmt.get(info.lastInsertRowid) as unknown as User;
 }
 
@@ -1330,6 +1340,24 @@ function getPromotionNonRedeemers(promotionId: number, { limit = 20, page = 1, q
 
 const activePromotionsCountStmt = db.prepare('SELECT COUNT(*) AS total FROM promotions WHERE active = 1');
 const distinctPromoRedeemersStmt = db.prepare('SELECT COUNT(DISTINCT user_id) AS total FROM promotion_redemptions');
+const signupSourceCountsStmt = db.prepare('SELECT signup_source, COUNT(*) AS total FROM users GROUP BY signup_source');
+
+export interface SignupSourceCounts {
+  web: number;
+  local: number;
+}
+
+// Cuántos clientes se registraron desde el QR físico del local vs. desde la
+// web normal — para medir si vale la pena el cartel/QR en el mostrador.
+function adminSignupSourceCounts(): SignupSourceCounts {
+  const rows = signupSourceCountsStmt.all() as unknown as { signup_source: string; total: number }[];
+  const counts: SignupSourceCounts = { web: 0, local: 0 };
+  for (const row of rows) {
+    if (row.signup_source === 'local') counts.local += row.total;
+    else counts.web += row.total;
+  }
+  return counts;
+}
 
 export interface PromotionsSummary {
   totalActivePromotions: number;
@@ -1501,11 +1529,12 @@ export interface AdminUserRow {
   puntos: number;
   total_gastado: number;
   num_compras: number;
+  signup_source: string;
 }
 
 const adminUsersStmt = db.prepare(
   `SELECT u.id, u.name, u.email, u.avatar_url, u.totp_enabled, u.created_at,
-          u.dni, u.telefono,
+          u.dni, u.telefono, u.signup_source,
           u.referred_by, u.family_group_id,
           COALESCE((SELECT SUM(delta) FROM points_ledger l WHERE l.user_id = u.id), 0) AS puntos,
           COALESCE((SELECT SUM(monto) FROM purchases p WHERE p.user_id = u.id), 0) AS total_gastado,
@@ -1517,7 +1546,7 @@ const adminUsersStmt = db.prepare(
 const adminUsersCountStmt = db.prepare('SELECT COUNT(*) AS total FROM users');
 const adminUsersSearchStmt = db.prepare(`
   SELECT u.id, u.name, u.email, u.avatar_url, u.totp_enabled, u.created_at,
-         u.dni, u.telefono,
+         u.dni, u.telefono, u.signup_source,
          u.referred_by, u.family_group_id,
          COALESCE((SELECT SUM(delta) FROM points_ledger l WHERE l.user_id = u.id), 0) AS puntos,
          COALESCE((SELECT SUM(monto) FROM purchases p WHERE p.user_id = u.id), 0) AS total_gastado,
@@ -1962,6 +1991,7 @@ module.exports = {
   adminTopCustomersByPurchases,
   adminRecurringPromoCustomers,
   adminTrafficStats,
+  adminSignupSourceCounts,
   adminAllUsers,
   adminAllPurchases,
   adminAllReferrals,

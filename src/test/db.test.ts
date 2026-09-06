@@ -260,6 +260,33 @@ test('wallet: markWalletSaved agrega al usuario a listWalletSavedUserIds', () =>
   assert.ok(db.listWalletSavedUserIds().includes(after1.id));
 });
 
+// ───────────────────────── QR de registro en el local ─────────────────────────
+
+test('signup_source: por defecto es "web", y "local" solo se fija al crear la cuenta', () => {
+  userSeq += 1;
+  const web = db.upsertGoogleUser({ googleId: `gsrc${userSeq}`, email: `src${userSeq}@example.com`, name: 'Fuente Web', avatarUrl: null });
+  assert.equal(web.signup_source, 'web');
+
+  userSeq += 1;
+  const local = db.upsertGoogleUser({ googleId: `gsrc${userSeq}`, email: `src${userSeq}@example.com`, name: 'Fuente Local', avatarUrl: null, source: 'local' });
+  assert.equal(local.signup_source, 'local');
+
+  // un login posterior no debe cambiar la fuente original
+  const relogin = db.upsertGoogleUser({ googleId: local.google_id, email: local.email, name: local.name, avatarUrl: null, source: 'web' });
+  assert.equal(relogin.signup_source, 'local');
+});
+
+test('adminSignupSourceCounts: cuenta cuántos vinieron del QR del local vs. la web', () => {
+  const before = db.adminSignupSourceCounts();
+
+  userSeq += 1;
+  db.upsertGoogleUser({ googleId: `gcount${userSeq}`, email: `count${userSeq}@example.com`, name: 'Conteo Local', avatarUrl: null, source: 'local' });
+
+  const after = db.adminSignupSourceCounts();
+  assert.equal(after.local, before.local + 1);
+  assert.equal(after.web, before.web);
+});
+
 // ───────────────────────── niveles de fidelidad ─────────────────────────
 
 test('niveles: sube de bronce a plata a oro según puntos de por vida, y el canje no baja de nivel', () => {

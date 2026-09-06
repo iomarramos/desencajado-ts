@@ -22,7 +22,7 @@ const {
   updatePromotion, deletePromotion,
   addPushSubscription, removePushSubscription, listAllPushSubscriptions,
   adminListUsers, adminListReferrals, adminListFamilyGroups, adminListPurchases, adminTrafficStats,
-  adminAllUsers, adminAllPurchases, adminAllReferrals,
+  adminAllUsers, adminAllPurchases, adminAllReferrals, adminSignupSourceCounts,
 } = require('./db');
 const google = require('./auth/google');
 const totp = require('./auth/totp');
@@ -123,6 +123,7 @@ const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || `http://localhost
 const SESSION_COOKIE = 'sid';
 const STATE_COOKIE = 'oauth_state';
 const REF_COOKIE = 'pending_ref';
+const SOURCE_COOKIE = 'pending_source';
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -406,6 +407,10 @@ function handleGoogleStart(req: Req, res: Res, query: URLSearchParams): void {
   const cookies = [cookieString(req, STATE_COOKIE, state, { maxAge: 600 })];
   const ref = String(query.get('ref') || '').trim();
   if (ref) cookies.push(cookieString(req, REF_COOKIE, ref, { maxAge: 600 }));
+  // `fuente=local` viene del QR físico del negocio (mostrador/vitrina) — se
+  // guarda para saber, al crear la cuenta, si vino de ahí o de la web normal.
+  const source = String(query.get('fuente') || '').trim();
+  if (source === 'local') cookies.push(cookieString(req, SOURCE_COOKIE, source, { maxAge: 600 }));
   headers['Set-Cookie'] = cookies;
   res.writeHead(302, headers);
   res.end();
@@ -436,6 +441,7 @@ async function handleGoogleCallback(req: Req, res: Res, query: URLSearchParams):
       email: payload.email,
       name: payload.name || payload.email,
       avatarUrl: payload.picture,
+      source: cookies[SOURCE_COOKIE],
     });
 
     const refCode = cookies[REF_COOKIE];
@@ -456,6 +462,7 @@ async function handleGoogleCallback(req: Req, res: Res, query: URLSearchParams):
         cookieString(req, SESSION_COOKIE, token, { maxAge: 30 * 86400 }),
         clearCookieString(req, STATE_COOKIE),
         clearCookieString(req, REF_COOKIE),
+        clearCookieString(req, SOURCE_COOKIE),
       ],
     });
     res.end();
@@ -900,6 +907,13 @@ function handleAdminPurchases(req: Req, res: Res, query: URLSearchParams): void 
 function handleAdminTraffic(req: Req, res: Res): void {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
   sendJson(res, 200, { ok: true, ...adminTrafficStats() });
+}
+
+// Cuántos clientes se registraron desde el QR físico del local vs. la web
+// normal — mide si vale la pena el cartel/QR en el mostrador.
+function handleAdminSignupSources(req: Req, res: Res): void {
+  if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
+  sendJson(res, 200, { ok: true, ...adminSignupSourceCounts() });
 }
 
 // ───────────────────────── administrador: promociones + push ─────────────────────────
@@ -1402,6 +1416,7 @@ function handleAdminExportUsers(req: Req, res: Res): void {
     { key: 'num_compras', label: 'Compras' },
     { key: 'total_gastado', label: 'Total gastado' },
     { key: 'totp_enabled', label: '2FA activo' },
+    { key: 'signup_source', label: 'Fuente de registro' },
     { key: 'created_at', label: 'Registrado' },
   ]);
   sendCsv(res, 'usuarios.csv', csv);
@@ -1510,6 +1525,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url === '/api/admin/referrals') return handleAdminReferrals(req, res, query);
     if (req.method === 'GET' && url === '/api/admin/family-groups') return handleAdminFamilyGroups(req, res, query);
     if (req.method === 'GET' && url === '/api/admin/stats/traffic') return handleAdminTraffic(req, res);
+    if (req.method === 'GET' && url === '/api/admin/reports/signup-sources') return handleAdminSignupSources(req, res);
     if (req.method === 'GET' && url === '/api/admin/promotions') return handleAdminPromotionsList(req, res, query);
     if (req.method === 'POST' && url === '/api/admin/promotions') return await handleAdminPromotionCreate(req, res);
     if (req.method === 'GET' && url === '/api/admin/promotions/summary') return handleAdminPromotionsSummary(req, res);

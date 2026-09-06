@@ -291,6 +291,8 @@ vuelve a aparecer una vez visto (se recuerda por `publication_code` en
   con sus miembros, paginado.
 - `GET /api/admin/stats/traffic` — Conteo de compras por hora del día (0-23)
   y por día de la semana, para ver horarios/tráfico pico.
+- `GET /api/admin/reports/signup-sources` — `{ web, local }`, cuántos
+  clientes se registraron desde el QR físico del local vs. la web normal.
 - `GET /api/admin/promotions?page=&limit=` — Promociones publicadas
   (activas e inactivas), con sus productos y códigos de canje.
 - `POST /api/admin/promotions` — Body
@@ -370,6 +372,31 @@ Cuando alguien se registra usando el enlace de referido de otro cliente
 - `REFERRAL_WELCOME_POINTS` (default 10) para el que se registró.
 
 Poner cualquiera de las dos en `0` la desactiva.
+
+## Registro en el local: QR físico + aviso de proximidad
+
+Dos formas de que un cliente se una a la fidelización sin depender de que
+encuentre la web solo:
+
+**QR físico en el mostrador/mesa/vitrina** — en el admin, pestaña **"QR del
+local"**, hay un código QR (generado en el navegador, sin backend extra)
+que apunta a `/cuenta.html?fuente=local`. El cliente lo escanea con la
+cámara, entra al mismo flujo de siempre (login con Google → DNI/celular →
+2FA), y su cuenta queda marcada con `signup_source = 'local'` — visible en
+la columna "Fuente" de Usuarios, en el CSV exportado, y como conteo
+("Registrados por el QR del local" vs. "desde la web") en esa misma
+pestaña. Es solo informativo: no cambia ningún límite ni bono.
+
+**Aviso de proximidad nativo de Google Wallet** — si se configuran
+`GOOGLE_WALLET_LOCATION_LAT` / `GOOGLE_WALLET_LOCATION_LNG` (ver
+`.env.example`) con la coordenada exacta del local, la tarjeta de
+fidelidad que el cliente ya guardó incluye esa ubicación; **Google Wallet
+se encarga de todo lo demás** — cuando el celular del cliente pasa cerca,
+le muestra solo una notificación en la pantalla de bloqueo invitándolo a
+ver su tarjeta. No hace falta una app aparte ni geolocalización en el
+navegador: es una función nativa de las tarjetas de lealtad de Wallet, y
+como todo lo de Google Wallet en este proyecto, es opcional — sin esas dos
+variables la tarjeta funciona exactamente igual, solo sin ese aviso.
 
 ## Seguridad
 

@@ -399,8 +399,12 @@ let currentUser = null;
 async function init(){
   const params = new URLSearchParams(location.search);
   const ref = params.get('ref');
-  if (ref) {
-    document.getElementById('google-btn').href = `/auth/google?ref=${encodeURIComponent(ref)}`;
+  const fuente = params.get('fuente');
+  const authParams = new URLSearchParams();
+  if (ref) authParams.set('ref', ref);
+  if (fuente === 'local') authParams.set('fuente', fuente);
+  if ([...authParams].length > 0) {
+    document.getElementById('google-btn').href = `/auth/google?${authParams}`;
   }
 
   const { data } = await api('/api/me');

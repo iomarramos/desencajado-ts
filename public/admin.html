@@ -6,6 +6,7 @@
 <title>DESENCAJADO — Panel administrador</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root{
   /* Amarillo Cromo · Azul Eléctrico · Fucsia Magenta · Negro Grafito */
@@ -124,6 +125,7 @@ textarea{resize:vertical;min-height:70px}
     <button class="tab-btn" data-tab="productos">Productos</button>
     <button class="tab-btn" data-tab="promos">Promociones</button>
     <button class="tab-btn" data-tab="reportes">Reportes</button>
+    <button class="tab-btn" data-tab="qrlocal">QR del local</button>
     <button class="tab-btn" data-tab="perfil">Campos de perfil</button>
     <button class="tab-btn" data-tab="suscriptores">Pre-registro</button>
   </div>
@@ -168,7 +170,7 @@ textarea{resize:vertical;min-height:70px}
         </div>
       </div>
       <table>
-        <thead><tr><th>Nombre</th><th>Email</th><th>DNI</th><th>Celular</th><th>Estrellas</th><th>Compras</th><th>Total gastado</th><th>2FA</th><th>Registrado</th><th></th></tr></thead>
+        <thead><tr><th>Nombre</th><th>Email</th><th>DNI</th><th>Celular</th><th>Estrellas</th><th>Compras</th><th>Total gastado</th><th>2FA</th><th>Fuente</th><th>Registrado</th><th></th></tr></thead>
         <tbody id="usuarios-body"></tbody>
       </table>
       <p class="empty hidden" id="usuarios-empty">Sin usuarios todavía.</p>
@@ -334,6 +336,28 @@ textarea{resize:vertical;min-height:70px}
     </div>
   </div>
 
+  <div id="tab-qrlocal" class="tab-panel hidden">
+    <div class="card">
+      <h2>QR de registro en el local</h2>
+      <p class="empty" style="padding:0 0 1rem">
+        Imprime este código y ponlo en el mostrador, una mesa o la vitrina.
+        El cliente lo escanea con la cámara de su celular, inicia sesión con
+        Google y llena sus datos (DNI, celular, 2FA) — el mismo flujo de
+        siempre, pero queda marcado como "registrado en el local" para que
+        lo veas en Usuarios y en el resumen de abajo.
+      </p>
+      <div style="display:flex;gap:1.6rem;flex-wrap:wrap;align-items:flex-start">
+        <div id="qrlocal-canvas" style="background:#fff;padding:12px;border:3px solid var(--navy);border-radius:12px;display:inline-block"></div>
+        <div style="flex:1;min-width:220px">
+          <label>Enlace codificado en el QR</label>
+          <input type="text" id="qrlocal-url" readonly style="width:100%;padding:.75rem 1rem;border-radius:12px;border:2px solid rgba(26,26,26,.2);font-family:monospace;font-size:.8rem">
+          <button class="btn ghost small" id="qrlocal-copy-btn" style="margin-top:.6rem">Copiar enlace</button>
+        </div>
+      </div>
+      <div class="stat-grid" id="qrlocal-summary" style="margin-top:1.4rem"></div>
+    </div>
+  </div>
+
   <div id="tab-perfil" class="tab-panel hidden">
     <div class="card">
       <h2>Nuevo campo de perfil</h2>
@@ -475,6 +499,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     if (btn.dataset.tab === 'productos') loadProductos();
     if (btn.dataset.tab === 'promos') { loadPromos(); loadProductCheckboxes(); }
     if (btn.dataset.tab === 'reportes') { loadReportesSummary(); loadTopClientes(1); loadRecurrentes(1); }
+    if (btn.dataset.tab === 'qrlocal') loadQrLocal();
     if (btn.dataset.tab === 'perfil') loadPerfilFields();
     if (btn.dataset.tab === 'suscriptores') loadSuscriptores();
   });
@@ -554,8 +579,9 @@ async function loadUsuarios(page = pageState.usuarios){
   document.getElementById('usuarios-empty').classList.toggle('hidden', data.items.length > 0);
   data.items.forEach(u => {
     const tr = document.createElement('tr');
+    const fuente = u.signup_source === 'local' ? '📍 Local' : '🌐 Web';
     tr.innerHTML = `<td>${escapeHtml(u.name)}</td><td>${escapeHtml(u.email)}</td><td>${escapeHtml(u.dni) || '—'}</td><td>${escapeHtml(u.telefono) || '—'}</td><td>${u.puntos} ⭐</td><td>${u.num_compras}</td>
-      <td>S/ ${Number(u.total_gastado).toFixed(2)}</td><td>${u.totp_enabled ? '✅' : '—'}</td><td>${escapeHtml(u.created_at)}</td><td></td>`;
+      <td>S/ ${Number(u.total_gastado).toFixed(2)}</td><td>${u.totp_enabled ? '✅' : '—'}</td><td>${fuente}</td><td>${escapeHtml(u.created_at)}</td><td></td>`;
     const actionTd = tr.lastElementChild;
     const btn = document.createElement('button');
     btn.className = 'btn ghost small';
@@ -842,6 +868,39 @@ async function loadReportesSummary(){
     <div class="stat-box"><b>${data.redemptionRatePct}%</b><span>TASA DE CANJE</span></div>
   `;
 }
+
+// ═══ QR de registro en el local ═══
+
+async function loadQrLocal(){
+  const url = `${location.origin}/cuenta.html?fuente=local`;
+  document.getElementById('qrlocal-url').value = url;
+
+  const canvas = document.getElementById('qrlocal-canvas');
+  canvas.innerHTML = '';
+  try {
+    new QRCode(canvas, { text: url, width: 220, height: 220 });
+  } catch {
+    // El QR es un extra visual generado en el navegador (librería por CDN);
+    // si no cargó (sin internet, bloqueador de anuncios, etc.) igual queda
+    // el enlace de texto arriba para copiar/imprimir a mano.
+    canvas.textContent = 'No se pudo generar el QR — usa el enlace de abajo.';
+  }
+
+  const data = await adminFetch('/api/admin/reports/signup-sources');
+  document.getElementById('qrlocal-summary').innerHTML = `
+    <div class="stat-box"><b>${data.local || 0}</b><span>REGISTRADOS POR EL QR DEL LOCAL</span></div>
+    <div class="stat-box"><b>${data.web || 0}</b><span>REGISTRADOS DESDE LA WEB</span></div>
+  `;
+}
+
+document.getElementById('qrlocal-copy-btn').addEventListener('click', () => {
+  const input = document.getElementById('qrlocal-url');
+  navigator.clipboard.writeText(input.value).then(() => {
+    const btn = document.getElementById('qrlocal-copy-btn');
+    btn.textContent = '¡Copiado!';
+    setTimeout(() => { btn.textContent = 'Copiar enlace'; }, 1800);
+  });
+});
 
 async function loadTopClientes(page = pageState.topcli){
   pageState.topcli = page;
