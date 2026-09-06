@@ -87,6 +87,12 @@ th{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;opacity:.6}
 .empty{opacity:.6;font-size:.9rem;padding:1rem 0}
 
 .ref-box{display:flex;gap:.8rem;align-items:center;flex-wrap:wrap;background:var(--bone);border-radius:14px;padding:1rem 1.2rem}
+
+.combo-item{display:flex;align-items:center;gap:1rem;background:var(--bone);border-radius:14px;padding:.9rem 1.2rem}
+.combo-item img{width:52px;height:52px;border-radius:10px;object-fit:cover;background:#fff;flex-shrink:0}
+.combo-item .name{font-weight:800;font-family:var(--fd)}
+.combo-item .price-old{text-decoration:line-through;opacity:.55;font-size:.82rem;margin-right:.4rem}
+.combo-item .price-member{color:var(--fuchsia);font-weight:900;font-family:var(--fd)}
 .ref-box code{font-weight:700;font-family:monospace}
 
 .field{display:grid;gap:.35rem;margin-bottom:.9rem}
@@ -254,6 +260,12 @@ footer{background:#081130;color:rgba(255,255,255,.7);padding:2rem 5vw;text-align
       <span id="spin-caption" class="empty" style="padding:0"></span>
     </div>
     <div class="msg" id="spin-msg"></div>
+  </div>
+
+  <div class="card hidden" id="combos-card">
+    <h2>🥤 Combos para socios</h2>
+    <p class="lead" style="font-size:.85rem;margin-bottom:1rem">Precio especial solo por estar logueado en tu cuenta.</p>
+    <div id="combos-list" style="display:grid;gap:.8rem"></div>
   </div>
 
   <div class="card">
@@ -539,6 +551,7 @@ function renderWallet(user){
   renderTier(user.tier);
   renderSpin(user.spinStatus);
   renderExtraInfoCard(user.profileFields);
+  loadCombos();
 
   document.getElementById('copy-ref-btn').onclick = () => {
     const link = `${location.origin}/cuenta.html?ref=${user.referralCode}`;
@@ -717,6 +730,29 @@ async function loadPurchases(){
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${escapeHtml(p.created_at)}</td><td>${escapeHtml(p.producto) || '—'}</td><td>S/ ${p.monto.toFixed(2)}</td><td>+${p.puntos}</td>`;
     body.appendChild(tr);
+  });
+}
+
+async function loadCombos(){
+  const { ok, data } = await api('/api/products/combos');
+  const card = document.getElementById('combos-card');
+  if (!ok || !data.items || data.items.length === 0) {
+    card.classList.add('hidden');
+    return;
+  }
+  card.classList.remove('hidden');
+  const list = document.getElementById('combos-list');
+  list.innerHTML = '';
+  data.items.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'combo-item';
+    const photo = p.photo_url ? `<img src="${escapeHtml(p.photo_url)}" alt="">` : '';
+    row.innerHTML = `${photo}
+      <div style="flex:1">
+        <div class="name">${escapeHtml(p.name)}</div>
+        <div>${p.price != null ? `<span class="price-old">S/ ${Number(p.price).toFixed(2)}</span>` : ''}<span class="price-member">S/ ${Number(p.member_price).toFixed(2)}</span></div>
+      </div>`;
+    list.appendChild(row);
   });
 }
 

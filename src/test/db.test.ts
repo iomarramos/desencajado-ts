@@ -105,6 +105,22 @@ test('productos: crear, editar, y bloquear borrado si está en uso', () => {
   assert.equal(db.getProductById(product.id), undefined);
 });
 
+test('combos solo-miembros: solo aparecen los productos con precio de socio', () => {
+  const before = db.listActiveCombos().length;
+
+  const normal = db.createProduct({ name: 'Café normal', photoUrl: null, price: 5 });
+  const combo = db.createProduct({ name: 'Combo Socio', photoUrl: null, price: 20, memberPrice: 15 });
+
+  const combos = db.listActiveCombos();
+  assert.equal(combos.length, before + 1);
+  assert.ok(!combos.some((p: any) => p.id === normal.id));
+  assert.ok(combos.some((p: any) => p.id === combo.id && p.member_price === 15));
+
+  const updated = db.updateProduct(combo.id, { memberPrice: null });
+  assert.equal(updated.member_price, null);
+  assert.equal(db.listActiveCombos().length, before);
+});
+
 // ───────────────────────── promociones y canje ─────────────────────────
 
 test('promociones: código de publicación autogenerado y edición', () => {

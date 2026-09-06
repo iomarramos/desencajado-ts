@@ -216,6 +216,10 @@ ensureColumn('users', 'telefono', 'TEXT');
 // cambia después del primer registro.
 ensureColumn('users', 'signup_source', "TEXT NOT NULL DEFAULT 'web'");
 
+// Precio especial para clientes logueados (combo solo-miembros, ej. Bembos):
+// NULL = el producto no tiene precio de socio, se vende solo al precio normal.
+ensureColumn('products', 'member_price', 'REAL');
+
 // Único entre quienes ya lo llenaron: SQLite no deja agregar UNIQUE en un
 // ALTER TABLE ADD COLUMN, así que va como índice parcial aparte. Permite
 // múltiples NULL (usuarios que aún no completaron su perfil).
@@ -307,6 +311,7 @@ export interface Product {
   name: string;
   photo_url: string | null;
   price: number | null;
+  member_price: number | null;
   active: number;
   created_at: string;
 }
@@ -879,16 +884,34 @@ function removeFamilyMember(ownerId: number, memberUserId: number): void {
 // ───────────────────────── catálogo de productos ─────────────────────────
 
 const insertProductStmt = db.prepare(
-  'INSERT INTO products (name, photo_url, price) VALUES (?, ?, ?)'
+  'INSERT INTO products (name, photo_url, price, member_price) VALUES (?, ?, ?, ?)'
 );
 const getProductByIdStmt = db.prepare('SELECT * FROM products WHERE id = ?');
 const listActiveProductsStmt = db.prepare('SELECT * FROM products WHERE active = 1 ORDER BY name');
+const listActiveCombosStmt = db.prepare(
+  'SELECT * FROM products WHERE active = 1 AND member_price IS NOT NULL ORDER BY name'
+);
 const adminListProductsStmt = db.prepare('SELECT * FROM products ORDER BY id DESC LIMIT ? OFFSET ?');
 const adminProductsCountStmt = db.prepare('SELECT COUNT(*) AS total FROM products');
 const deactivateProductStmt = db.prepare('UPDATE products SET active = 0 WHERE id = ?');
 
-function createProduct({ name, photoUrl, price }: { name: string; photoUrl?: string | null; price?: number | string | null }): Product {
-  const info = insertProductStmt.run(name, photoUrl || null, price != null && price !== '' ? Number(price) : null);
+function createProduct({
+  name,
+  photoUrl,
+  price,
+  memberPrice,
+}: {
+  name: string;
+  photoUrl?: string | null;
+  price?: number | string | null;
+  memberPrice?: number | string | null;
+}): Product {
+  const info = insertProductStmt.run(
+    name,
+    photoUrl || null,
+    price != null && price !== '' ? Number(price) : null,
+    memberPrice != null && memberPrice !== '' ? Number(memberPrice) : null
+  );
   return getProductByIdStmt.get(info.lastInsertRowid) as unknown as Product;
 }
 
@@ -898,6 +921,12 @@ function getProductById(id: number): Product | undefined {
 
 function listActiveProducts(): Product[] {
   return listActiveProductsStmt.all() as unknown as Product[];
+}
+
+// Combos solo-miembros: catálogo de productos con precio de socio, visible
+// únicamente para clientes logueados en cuenta.html (Bembos-style).
+function listActiveCombos(): Product[] {
+  return listActiveCombosStmt.all() as unknown as Product[];
 }
 
 function adminListProducts({ limit = 20, page = 1 }: PaginationParams = {}): PaginatedResult<Product> {
@@ -914,13 +943,18 @@ function deactivateProduct(id: number): void {
   deactivateProductStmt.run(id);
 }
 
-const updateProductStmt = db.prepare('UPDATE products SET name = ?, photo_url = ?, price = ? WHERE id = ?');
+const updateProductStmt = db.prepare('UPDATE products SET name = ?, photo_url = ?, price = ?, member_price = ? WHERE id = ?');
 const countPromotionProductsForProductStmt = db.prepare('SELECT COUNT(*) AS total FROM promotion_products WHERE product_id = ?');
 const deleteProductStmt = db.prepare('DELETE FROM products WHERE id = ?');
 
 function updateProduct(
   id: number,
-  { name, photoUrl, price }: { name?: string | null; photoUrl?: string | null; price?: number | string | null }
+  {
+    name,
+    photoUrl,
+    price,
+    memberPrice,
+  }: { name?: string | null; photoUrl?: string | null; price?: number | string | null; memberPrice?: number | string | null }
 ): Product {
   const existing = getProductByIdStmt.get(id) as unknown as Product | undefined;
   if (!existing) throw new Error('PRODUCT_NOT_FOUND');
@@ -928,6 +962,7 @@ function updateProduct(
     name != null && name !== '' ? name : existing.name,
     photoUrl !== undefined ? (photoUrl || null) : existing.photo_url,
     price !== undefined ? (price != null && price !== '' ? Number(price) : null) : existing.price,
+    memberPrice !== undefined ? (memberPrice != null && memberPrice !== '' ? Number(memberPrice) : null) : existing.member_price,
     id
   );
   return getProductByIdStmt.get(id) as unknown as Product;
@@ -1947,6 +1982,7 @@ module.exports = {
   createProduct,
   getProductById,
   listActiveProducts,
+  listActiveCombos,
   adminListProducts,
   deactivateProduct,
   updateProduct,

@@ -242,8 +242,13 @@ textarea{resize:vertical;min-height:70px}
           <label for="prod-price">Precio (S/, opcional)</label>
           <input type="number" id="prod-price" min="0" step="0.1" placeholder="18.50">
         </div>
+        <div class="field" style="margin:0">
+          <label for="prod-member-price">Precio miembro (S/, opcional)</label>
+          <input type="number" id="prod-member-price" min="0" step="0.1" placeholder="15.00">
+        </div>
         <button class="btn small" id="prod-submit-btn">Agregar producto</button>
       </div>
+      <p class="empty" style="padding:.4rem 0 0">Si pones un "precio miembro", ese producto aparece como combo solo-socios en la cuenta del cliente (solo visible logueado, con el precio normal tachado).</p>
       <div class="msg" id="prod-msg"></div>
     </div>
     <div class="card">
@@ -961,8 +966,9 @@ async function loadProductos(page = pageState.productos || 1){
     const photo = prod.photo_url ? `<img src="${escapeHtml(prod.photo_url)}" alt="">` : '<div style="width:56px;height:56px;border-radius:10px;background:var(--bone)"></div>';
     row.innerHTML = `${photo}
       <div style="flex:1">
-        <b>${escapeHtml(prod.name)}</b> ${prod.active ? '' : '<span class="pill">Inactivo</span>'}
+        <b>${escapeHtml(prod.name)}</b> ${prod.active ? '' : '<span class="pill">Inactivo</span>'} ${prod.member_price != null ? '<span class="pill">Combo socios</span>' : ''}
         ${prod.price != null ? `<p style="font-size:.8rem;opacity:.7">S/ ${Number(prod.price).toFixed(2)}</p>` : ''}
+        ${prod.member_price != null ? `<p style="font-size:.8rem;opacity:.7">Precio miembro: S/ ${Number(prod.member_price).toFixed(2)}</p>` : ''}
       </div>`;
     const actions = document.createElement('div');
     actions.style.display = 'flex';
@@ -978,7 +984,9 @@ async function loadProductos(page = pageState.productos || 1){
       if (photoUrl === null) return;
       const price = prompt('Precio (S/, vacío = sin precio)', prod.price != null ? prod.price : '');
       if (price === null) return;
-      const { ok, data } = await adminPost('/api/admin/products/update', { id: prod.id, name, photoUrl, price: price || null });
+      const memberPrice = prompt('Precio miembro (S/, vacío = no es combo solo-socios)', prod.member_price != null ? prod.member_price : '');
+      if (memberPrice === null) return;
+      const { ok, data } = await adminPost('/api/admin/products/update', { id: prod.id, name, photoUrl, price: price || null, memberPrice: memberPrice || null });
       if (!ok) { alert(data.error || 'No se pudo editar.'); return; }
       loadProductos(page);
     };
@@ -1012,13 +1020,15 @@ document.getElementById('prod-submit-btn').addEventListener('click', async () =>
   const name = document.getElementById('prod-name').value.trim();
   const photoUrl = document.getElementById('prod-photo').value.trim();
   const price = document.getElementById('prod-price').value;
+  const memberPrice = document.getElementById('prod-member-price').value;
   if (!name) { setMsg('prod-msg', 'error', 'Ingresa un nombre.'); return; }
-  const { ok, data } = await adminPost('/api/admin/products', { name, photoUrl, price: price || null });
+  const { ok, data } = await adminPost('/api/admin/products', { name, photoUrl, price: price || null, memberPrice: memberPrice || null });
   if (!ok) { setMsg('prod-msg', 'error', data.error || 'No se pudo agregar.'); return; }
   setMsg('prod-msg', 'ok', `✅ ${data.product.name} agregado al catálogo.`);
   document.getElementById('prod-name').value = '';
   document.getElementById('prod-photo').value = '';
   document.getElementById('prod-price').value = '';
+  document.getElementById('prod-member-price').value = '';
   loadProductos();
 });
 

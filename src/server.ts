@@ -12,7 +12,7 @@ const {
   addPurchase, getPointsBalance, listPurchasesByUser, redeemPoints, getRewardProgress, SOLES_PER_PUNTO,
   getTierForUser, spinWheel, getSpinStatus,
   createFamilyGroup, joinFamilyGroup, getFamilyGroupForUser, leaveFamilyGroup, removeFamilyMember,
-  createProduct, listActiveProducts, adminListProducts, deactivateProduct, updateProduct, deleteProduct,
+  createProduct, listActiveProducts, listActiveCombos, adminListProducts, deactivateProduct, updateProduct, deleteProduct,
   createProfileField, getProfileFieldByKey, adminListProfileFields,
   updateProfileField, deleteProfileField, getUserProfileValues, getMissingRequiredFields, setUserProfileValues,
   createPromotion, addPromotionCode, redeemPromotionCode, findActivePromotionByTitle,
@@ -1212,6 +1212,14 @@ function handleAdminProductsActive(req: Req, res: Res): void {
   sendJson(res, 200, { ok: true, items: listActiveProducts() });
 }
 
+// Combos solo-miembros (Bembos-style): catálogo con precio de socio, visible
+// únicamente para clientes ya logueados en cuenta.html.
+function handleCombos(req: Req, res: Res): void {
+  const user = requireActiveUser(req);
+  if (!user) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
+  sendJson(res, 200, { ok: true, items: listActiveCombos() });
+}
+
 async function handleAdminProductCreate(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
 
@@ -1225,7 +1233,7 @@ async function handleAdminProductCreate(req: Req, res: Res): Promise<void> {
   const name = String(body.name || '').trim();
   if (!name) return sendJson(res, 400, { ok: false, error: 'El producto necesita un nombre.' });
 
-  const product = createProduct({ name, photoUrl: body.photoUrl, price: body.price });
+  const product = createProduct({ name, photoUrl: body.photoUrl, price: body.price, memberPrice: body.memberPrice });
   sendJson(res, 201, { ok: true, product });
 }
 
@@ -1257,7 +1265,7 @@ async function handleAdminProductUpdate(req: Req, res: Res): Promise<void> {
   if (!body.id) return sendJson(res, 400, { ok: false, error: 'Falta el id del producto.' });
 
   try {
-    const product = updateProduct(body.id, { name: body.name, photoUrl: body.photoUrl, price: body.price });
+    const product = updateProduct(body.id, { name: body.name, photoUrl: body.photoUrl, price: body.price, memberPrice: body.memberPrice });
     sendJson(res, 200, { ok: true, product });
   } catch {
     sendJson(res, 404, { ok: false, error: 'Producto no encontrado.' });
@@ -1539,6 +1547,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url === '/api/admin/promotions/codes') return await handleAdminPromotionAddCode(req, res);
     if (req.method === 'GET' && url === '/api/admin/products') return handleAdminProductsList(req, res, query);
     if (req.method === 'GET' && url === '/api/admin/products/active') return handleAdminProductsActive(req, res);
+    if (req.method === 'GET' && url === '/api/products/combos') return handleCombos(req, res);
     if (req.method === 'POST' && url === '/api/admin/products') return await handleAdminProductCreate(req, res);
     if (req.method === 'POST' && url === '/api/admin/products/deactivate') return await handleAdminProductDeactivate(req, res);
     if (req.method === 'POST' && url === '/api/admin/products/update') return await handleAdminProductUpdate(req, res);
