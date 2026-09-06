@@ -15,7 +15,9 @@ Sitio de **DESENCAJADO — Papas y Café** (Huaraz) con dos partes:
    **push** de promociones (con cuenta regresiva cuando la promo tiene fecha
    de vencimiento), **niveles de fidelidad** (Bronce/Plata/Oro según
    estrellas ganadas de por vida), una **ruleta de premios** diaria con
-   cooldown, y cierre de sesión en todos los dispositivos.
+   cooldown, **actualizaciones en tiempo real** (Server-Sent Events: el
+   saldo y las promociones nuevas aparecen solos, sin recargar la página),
+   y cierre de sesión en todos los dispositivos.
 3. **Panel de administrador**: tráfico de consumo por horario, usuarios y su
    wallet (con buscador y exportación a CSV, y botón para forzar el cierre
    de sesión de un cliente), afiliados, grupos compartidos, registro de
@@ -263,6 +265,16 @@ vuelve a aparecer una vez visto (se recuerda por `publication_code` en
 - `GET /api/push/vapid-public-key` — Clave pública VAPID (no requiere sesión).
 - `POST /api/push/subscribe` — Body: objeto `PushSubscription` del navegador.
 - `POST /api/push/unsubscribe` — Body `{ endpoint }`.
+- `GET /api/events` — Stream de **Server-Sent Events** (`text/event-stream`).
+  Mientras `cuenta.html` esté abierta, el servidor empuja en el momento:
+  - `event: balance` — saldo, progreso de recompensa, nivel y estado de la
+    ruleta actualizados, cada vez que cambian (compra, canje, giro,
+    referido) — sin que el navegador tenga que volver a preguntar.
+  - `event: promotion` — se activó una promoción nueva; el cliente vuelve a
+    pedir `/api/promotions` para refrescar el banner/popup.
+  `EventSource` reconecta solo si la conexión se corta (comportamiento
+  nativo del navegador); el servidor manda un comentario `: ping` cada 25s
+  para que ningún proxy intermedio cierre la conexión por inactividad.
 
 ## API — administrador (header `x-admin-token`)
 

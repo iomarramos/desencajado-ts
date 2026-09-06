@@ -509,12 +509,14 @@ document.getElementById('verify-confirm-btn').addEventListener('click', async ()
 });
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
+  disconnectEvents();
   await api('/api/logout', { method: 'POST' });
   location.reload();
 });
 
 document.getElementById('logout-all-btn').addEventListener('click', async () => {
   if (!confirm('¿Cerrar sesión en todos tus dispositivos? Vas a tener que volver a iniciar sesión en todos, incluido este.')) return;
+  disconnectEvents();
   await api('/api/logout-all', { method: 'POST' });
   location.reload();
 });
@@ -584,6 +586,7 @@ function renderWallet(user){
   setupPushButton(user);
   loadPurchases();
   loadPromotions();
+  connectEvents();
 }
 
 function renderReward(reward){
@@ -657,6 +660,45 @@ document.getElementById('spin-btn').addEventListener('click', async () => {
   document.getElementById('wallet-balance').textContent = data.balance;
   renderSpin(data.spinStatus);
 });
+
+// ═══ Tiempo real (Server-Sent Events) ═══
+//
+// Reemplaza cualquier "preguntarle al servidor cada tantos segundos si hay
+// puntos nuevos": el servidor empuja el cambio apenas ocurre (compra,
+// canje, ruleta, referido, promoción activada). EventSource reconecta solo
+// si la conexión se corta, así que no hay que manejar reintentos a mano.
+
+let eventSource = null;
+
+function connectEvents(){
+  if (eventSource) return; // ya conectado — evita duplicar la suscripción
+  eventSource = new EventSource('/api/events');
+
+  eventSource.addEventListener('balance', (e) => {
+    try { applyBalanceUpdate(JSON.parse(e.data)); } catch { /* evento inválido: ignorar */ }
+  });
+
+  eventSource.addEventListener('promotion', () => {
+    // Se re-consulta /api/promotions en vez de confiar en el payload del
+    // evento: así el banner y el popup usan siempre la misma lógica
+    // (incluido el filtro de "ya visto") que la carga inicial.
+    loadPromotions();
+  });
+}
+
+function disconnectEvents(){
+  if (!eventSource) return;
+  eventSource.close();
+  eventSource = null;
+}
+
+function applyBalanceUpdate({ balance, reward, tier, spinStatus }){
+  document.getElementById('wallet-balance').textContent = balance;
+  renderReward(reward);
+  renderTier(tier);
+  renderSpin(spinStatus);
+  loadPurchases();
+}
 
 async function loadPurchases(){
   const { ok, data } = await api('/api/purchases?limit=20');

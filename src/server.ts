@@ -33,6 +33,87 @@ const { checkRateLimit } = require('./auth/rateLimit');
 type Req = http.IncomingMessage;
 type Res = http.ServerResponse;
 
+// ───────────────────────── Server-Sent Events ─────────────────────────
+//
+// Conexión HTTP persistente por cliente conectado: en vez de que
+// cuenta.html pregunte "¿hay puntos nuevos?" cada tantos segundos, el
+// servidor le empuja el cambio en el milisegundo exacto en que ocurre
+// (compra registrada, canje, giro de ruleta, referido, promoción activada).
+
+interface SseClient {
+  res: Res;
+  userId: number;
+}
+
+const sseClients = new Set<SseClient>();
+
+function sseSend(res: Res, event: string, data: unknown): void {
+  res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+}
+
+// Le avisa SOLO al usuario dueño del saldo — el resto de conexiones abiertas
+// no debe enterarse del saldo de otro cliente.
+function pushBalanceEvent(userId: number): void {
+  const payload = {
+    balance: getPointsBalance(userId),
+    reward: getRewardProgress(userId),
+    tier: getTierForUser(userId),
+    spinStatus: getSpinStatus(userId),
+  };
+  for (const client of sseClients) {
+    if (client.userId === userId) sseSend(client.res, 'balance', payload);
+  }
+}
+
+// Una promoción nueva sí es para todo el mundo conectado (mismo criterio que
+// el popup público de /api/promotions): nunca incluye códigos de canje.
+function broadcastPromotionEvent(promotion: PromotionLike): void {
+  const payload = {
+    id: promotion.id,
+    title: promotion.title,
+    body: promotion.body,
+    photo_url: promotion.photo_url,
+    starts_at: promotion.starts_at ?? null,
+    ends_at: promotion.ends_at ?? null,
+    publication_code: promotion.publication_code ?? null,
+    products: promotion.products ?? [],
+  };
+  for (const client of sseClients) {
+    sseSend(client.res, 'promotion', payload);
+  }
+}
+
+const SSE_HEARTBEAT_MS = 25_000;
+
+function handleEvents(req: Req, res: Res): void {
+  const user = requireActiveUser(req);
+  if (!user) return sendJson(res, 401, { ok: false, error: 'No autenticado.' });
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    // Evita que un proxy intermedio (nginx, etc.) bufferee el stream y
+    // retrase la entrega de los eventos.
+    'X-Accel-Buffering': 'no',
+  });
+  res.write(': conectado\n\n');
+
+  const client: SseClient = { res, userId: user.id };
+  sseClients.add(client);
+
+  // Sin esto, un proxy/balanceador puede cortar la conexión por
+  // inactividad mucho antes de que haya un evento real que enviar.
+  const heartbeat = setInterval(() => {
+    res.write(': ping\n\n');
+  }, SSE_HEARTBEAT_MS);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    sseClients.delete(client);
+  });
+}
+
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
@@ -690,6 +771,9 @@ function handleGoogleWalletPass(req: Req, res: Res): void {
 // lo guardó y hay credenciales configuradas). Mejor esfuerzo: nunca bloquea
 // ni hace fallar la respuesta HTTP que la disparó.
 function syncWalletPoints(userId: number): void {
+  // El navegador conectado por SSE se entera en tiempo real; Google Wallet
+  // (si está configurado) se actualiza aparte, mejor esfuerzo.
+  pushBalanceEvent(userId);
   if (!googleWallet.isConfigured()) return;
   googleWallet.patchLoyaltyPoints(userId, getPointsBalance(userId));
 }
@@ -913,6 +997,9 @@ interface PromotionLike {
   body: string;
   photo_url: string | null;
   starts_at?: string | null;
+  ends_at?: string | null;
+  publication_code?: string | null;
+  products?: unknown[];
 }
 
 // Envía el push (navegador + Google Wallet) de una promoción y la marca
@@ -943,6 +1030,7 @@ async function activatePromotion(promotion: PromotionLike): Promise<{ pushSent: 
   }
 
   markPromotionActivated(id);
+  broadcastPromotionEvent(promotion);
   return { pushSent, walletPushQueued };
 }
 
@@ -1399,6 +1487,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url === '/api/points/redeem') return await handlePointsRedeem(req, res);
     if (req.method === 'GET' && url === '/api/wallet/spin') return handleSpinStatus(req, res);
     if (req.method === 'POST' && url === '/api/wallet/spin') return handleSpinPlay(req, res);
+    if (req.method === 'GET' && url === '/api/events') return handleEvents(req, res);
     if (req.method === 'POST' && url === '/api/profile/fields') return await handleProfileFieldsSubmit(req, res);
     if (req.method === 'POST' && url === '/api/family/create') return await handleFamilyCreate(req, res);
     if (req.method === 'POST' && url === '/api/family/join') return await handleFamilyJoin(req, res);
