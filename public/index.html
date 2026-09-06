@@ -3,252 +3,579 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DESENCAJADO — Regístrate para la apertura</title>
+<title>DESENCAJADO — Papas y Café · Huaraz · Apertura 29 oct 2026</title>
+<!--
+  ═══════════════════════════════════════════════════════════
+  DESENCAJADO · Papas y Café · Huaraz
+  ───────────────────────────────────────────────────────────
+  • 100% código: SVG + CSS + JS vanilla (SIN imágenes)
+  • BRANDING OFICIAL: Amarillo Cromo #FFC61A (~60%) · Azul
+    Eléctrico #1E6FCC (~30%) · Fucsia Magenta #D6218F (acento)
+    · Negro Grafito #1A1A1A (texto/secciones) · Blanco ·
+    Gris Claro #F4F4F4
+  • Gradiente digital: #D6218F → #1E6FCC
+  • Tipografías de marca: Space Grotesk (display) + Poppins (cuerpo)
+  • Dinámico: countdown en vivo, tabs de menú, canvas de
+    partículas, parallax, tilt, scramble, reveal, toast,
+    contador de inscritos y popup de promoción en vivo
+    (conectados al backend real)
+  ═══════════════════════════════════════════════════════════
+-->
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;700;800;900&display=swap" rel="stylesheet">
 <style>
-  /* ═══════════════════════════════════════════════════════
-     BRANDING OFICIAL
-     Amarillo Cromo  #FFC61A  (dominante ~60%)
-     Azul Eléctrico  #1E6FCC  (~30% / acento)
-     Fucsia Magenta  #D6218F  (acento)
-     Negro Grafito   #1A1A1A  (texto / secciones)
-     Blanco Puro     #FFFFFF  · Gris Claro #F4F4F4
-  ═══════════════════════════════════════════════════════ */
-  :root{
-    --yellow:#FFC61A; --yellow-deep:#F5B700;
-    --blue:#1E6FCC; --blue-light:#4A9EFF;
-    --fuchsia:#D6218F; --black:#1A1A1A;
-    --white:#FFFFFF; --gray:#F4F4F4;
-    --grad:linear-gradient(135deg,var(--fuchsia) 0%,var(--blue) 100%);
-    --radius:12px; --radius-lg:20px;
-    --fd:'Space Grotesk',sans-serif; --fb:'Poppins',sans-serif;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html{scroll-behavior:smooth}
-  body{background:var(--white);color:var(--black);font-family:var(--fb);line-height:1.6;overflow-x:hidden}
-  h1,h2,h3,.eyebrow,.badge{font-family:var(--fd)}
-  a{color:var(--blue);text-decoration:none;transition:.3s}
-  a:hover{color:var(--fuchsia)}
-  :focus-visible{outline:3px solid var(--fuchsia);outline-offset:3px;border-radius:4px}
-  ::selection{background:var(--fuchsia);color:#fff}
-  .wrap{max-width:1100px;margin:0 auto;padding:0 5vw}
+:root{
+  --yellow:#FFC61A; --navy:#1A1A1A; --blue:#1E6FCC; --fuchsia:#D6218F; --bone:#F4F4F4;
+  --grad:linear-gradient(90deg,var(--fuchsia),var(--blue));
+  --fd:'Space Grotesk',sans-serif; --fb:'Poppins',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:var(--fb);background:var(--bone);color:var(--navy);overflow-x:hidden}
+::selection{background:var(--fuchsia);color:#fff}
+::-webkit-scrollbar{width:9px}::-webkit-scrollbar-track{background:var(--bone)}
+::-webkit-scrollbar-thumb{background:var(--grad);border-radius:9px}
+canvas#stars{position:fixed;inset:0;z-index:0;pointer-events:none}
+#glow{position:fixed;width:420px;height:420px;border-radius:50%;z-index:1;pointer-events:none;
+  background:radial-gradient(circle,rgba(214,33,143,.14),rgba(30,111,204,.10) 45%,transparent 70%);
+  transform:translate(-50%,-50%);mix-blend-mode:multiply}
+main,header,footer{position:relative;z-index:2}
 
-  header{display:flex;justify-content:space-between;align-items:center;padding:1.1rem 5vw;background:var(--black)}
-  .logo{display:flex;align-items:center;gap:.6rem;text-decoration:none;font-family:var(--fd);font-weight:800;font-size:1.1rem;color:var(--yellow)}
-  .logo svg{width:34px;height:34px}
-  .logo:hover{color:var(--yellow)}
-  header a.acct{color:#fff;font-weight:700;font-size:.85rem;opacity:.85}
-  header a.acct:hover{color:var(--yellow);opacity:1}
+/* ═══ NAV ═══ */
+header{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;
+  padding:1rem 5vw;transition:.35s}
+header.scrolled{background:rgba(26,26,26,.92);backdrop-filter:blur(14px);padding:.6rem 5vw;box-shadow:0 8px 30px rgba(26,26,26,.25)}
+.logo{display:flex;align-items:center;gap:.6rem;text-decoration:none;font-family:var(--fd);font-weight:900;
+  font-size:1.15rem;letter-spacing:.02em;color:var(--navy)}
+header.scrolled .logo{color:#fff}
+.logo svg{width:38px;height:38px}
+nav{display:flex;gap:1.8rem;align-items:center}
+nav a{color:var(--navy);text-decoration:none;font-weight:600;font-size:.92rem;position:relative;transition:.3s}
+header.scrolled nav a{color:#fff}
+nav a::after{content:'';position:absolute;left:0;bottom:-5px;width:100%;height:3px;background:var(--grad);border-radius:3px;transform:scaleX(0);transform-origin:left;transition:.3s}
+nav a:hover::after{transform:scaleX(1)}
+.btn{display:inline-block;padding:.9rem 1.8rem;border-radius:999px;font-family:var(--fd);font-weight:700;
+  font-size:.95rem;text-decoration:none;border:none;cursor:pointer;transition:.3s}
+.btn-primary{background:var(--grad);color:#fff;box-shadow:0 10px 26px -10px rgba(214,33,143,.55)}
+.btn-primary:hover{transform:translateY(-3px) scale(1.02);box-shadow:0 16px 34px -10px rgba(30,111,204,.6)}
+.btn-ghost{background:transparent;color:var(--navy);border:2px solid var(--navy)}
+.btn-ghost:hover{background:var(--navy);color:var(--yellow);transform:translateY(-3px)}
+@media(max-width:860px){nav a{display:none}}
 
-  /* ---------- HERO (fachada amarilla) ---------- */
-  .hero{background:var(--yellow);padding:70px 0 60px;position:relative;overflow:hidden;
-    background-image:repeating-linear-gradient(-45deg,rgba(26,26,26,.05) 0 2px,transparent 2px 26px)}
-  .hero .wrap{position:relative;z-index:2;text-align:center}
-  .doodle{position:absolute;z-index:1;animation:float 6s ease-in-out infinite}
-  .doodle.d2{animation-duration:7.5s;animation-delay:.8s}
-  .doodle.d3{animation-duration:5.2s;animation-delay:.4s}
-  @keyframes float{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-14px) rotate(4deg)}}
+/* ═══ HERO ═══ */
+.hero{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:2rem;padding:7rem 5vw 3rem;
+  background:var(--yellow);
+  background-image:repeating-linear-gradient(-45deg,rgba(26,26,26,.045) 0 2px,transparent 2px 26px)}
+.badge{display:inline-flex;align-items:center;gap:.6rem;background:var(--navy);color:var(--yellow);
+  padding:.5rem 1.1rem;border-radius:999px;font-weight:700;font-size:.78rem;letter-spacing:.14em;margin-bottom:1.4rem}
+.badge i{width:8px;height:8px;border-radius:50%;background:var(--fuchsia);box-shadow:0 0 10px var(--fuchsia);animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.3}}
+h1{font-family:var(--fd);font-weight:900;font-size:clamp(2.6rem,5.6vw,4.6rem);line-height:1.05;letter-spacing:-.01em}
+h1 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{margin:1.2rem 0 1.8rem;font-size:clamp(1.05rem,2vw,1.35rem);font-weight:600;color:var(--navy)}
+.sub b{background:var(--fuchsia);color:#fff;padding:.1em .45em;border-radius:8px;display:inline-block;transform:rotate(-1.5deg)}
+.cta-row{display:flex;gap:1rem;flex-wrap:wrap}
+.loc{margin-top:1.4rem;font-weight:600;font-size:.95rem;opacity:.85}
+/* countdown */
+.cd{display:flex;gap:.9rem;margin-top:2rem}
+.cd div{background:var(--navy);color:#fff;border-radius:14px;padding:.8rem 1rem;min-width:78px;text-align:center;
+  box-shadow:0 12px 26px -12px rgba(26,26,26,.6);border-bottom:4px solid var(--fuchsia)}
+.cd b{display:block;font-family:var(--fd);font-size:1.7rem;font-weight:900;color:var(--yellow)}
+.cd span{font-size:.66rem;letter-spacing:.2em;font-weight:700}
+.counter{display:inline-flex;align-items:center;gap:.5rem;margin-top:1.4rem;background:var(--navy);color:var(--yellow);
+  padding:.6rem 1.2rem;border-radius:999px;font-weight:700;font-size:.85rem}
+/* mascot */
+.scene{position:relative;display:grid;place-items:center}
+.scene svg{width:min(92%,560px);filter:drop-shadow(0 24px 40px rgba(26,26,26,.28))}
+.fl{animation:float 5s ease-in-out infinite}
+.fl2{animation:float 6.5s ease-in-out 1s infinite}
+.fl3{animation:float 7s ease-in-out .5s infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+.spin{animation:spin 14s linear infinite;transform-origin:center;transform-box:fill-box}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:980px){.hero{grid-template-columns:1fr;text-align:center;padding-top:6rem}.cta-row,.cd{justify-content:center}}
 
-  .badge{display:inline-flex;align-items:center;gap:.6rem;font-size:.8rem;font-weight:800;letter-spacing:.14em;
-    text-transform:uppercase;color:var(--black);background:var(--white);padding:8px 16px;border-radius:999px;
-    border:2px solid var(--black);margin-bottom:20px;transform:rotate(-1.5deg)}
-  .badge i{width:8px;height:8px;border-radius:50%;background:var(--fuchsia);box-shadow:0 0 10px var(--fuchsia);animation:pulse 2s infinite}
-  @keyframes pulse{50%{opacity:.3}}
+/* ═══ MARQUEE ═══ */
+.marquee{overflow:hidden;background:var(--navy);border-block:4px solid var(--fuchsia)}
+.mq{display:flex;gap:3rem;width:max-content;padding:.9rem 0;animation:mq 24s linear infinite}
+.mq span{font-family:var(--fd);font-weight:800;letter-spacing:.18em;color:var(--yellow);white-space:nowrap;font-size:.9rem}
+.mq em{font-style:normal;color:var(--fuchsia)}
+@keyframes mq{to{transform:translateX(-50%)}}
 
-  .box-frame{border:3px dashed var(--black);border-radius:var(--radius-lg);padding:44px 30px 46px;
-    position:relative;margin-top:6px;background:rgba(255,255,255,.35);display:inline-block;max-width:44rem}
-  h1{font-family:var(--fd);font-weight:900;font-size:clamp(2.2rem,6.5vw,3.4rem);line-height:1.28;letter-spacing:-1px;
-    color:var(--black);text-shadow:3px 3px 0 var(--blue),6px 6px 0 var(--fuchsia)}
-  h1 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
-  .sub{font-size:1.05rem;color:var(--black);margin:22px auto 0;max-width:46ch;font-weight:600;line-height:1.7}
-  .sub b{background:var(--black);color:var(--yellow);padding:.1em .45em;border-radius:8px;display:inline-block}
-  .loc{margin-top:12px;font-weight:600;font-size:.9rem;opacity:.75}
+/* ═══ SECCIONES ═══ */
+section{padding:6rem 5vw}
+.kicker{font-size:.75rem;font-weight:800;letter-spacing:.3em;color:var(--fuchsia);text-transform:uppercase}
+h2{font-family:var(--fd);font-weight:900;font-size:clamp(1.8rem,3.6vw,2.8rem);margin:.5rem 0 1rem;letter-spacing:-.01em}
+h2::after{content:'';display:block;width:80px;height:5px;background:var(--grad);border-radius:4px;margin-top:.8rem}
+.on-dark{background:var(--navy);color:#fff}
+.on-dark h2::after{margin-top:.8rem}
+.on-dark .kicker{color:var(--yellow)}
 
-  .cd{display:flex;gap:.8rem;justify-content:center;margin-top:1.8rem;flex-wrap:wrap}
-  .cd div{background:var(--black);color:#fff;border-radius:14px;padding:.7rem .9rem;min-width:72px;text-align:center;
-    border-bottom:4px solid var(--fuchsia)}
-  .cd b{display:block;font-family:var(--fd);font-size:1.5rem;font-weight:800;color:var(--yellow)}
-  .cd span{font-size:.62rem;letter-spacing:.18em;font-weight:700}
+/* historia */
+.hist{display:grid;grid-template-columns:1.1fr .9fr;gap:3.5rem;align-items:start}
+.hist p{line-height:1.75;margin-bottom:1rem;font-size:1.02rem}
+.hist .quote{font-family:var(--fd);font-weight:800;font-size:1.3rem;color:var(--fuchsia);transform:rotate(-1deg);
+  border-left:5px solid var(--yellow);padding-left:1rem;margin:1.4rem 0}
+.promises{display:grid;gap:1.1rem}
+.promise{background:#fff;border-radius:18px;padding:1.4rem 1.5rem;border:2px solid var(--navy);
+  box-shadow:6px 6px 0 var(--yellow);transition:.3s}
+.promise:hover{transform:translate(-4px,-4px);box-shadow:10px 10px 0 var(--fuchsia)}
+.promise h3{font-family:var(--fd);font-size:1rem;margin-bottom:.4rem}
+.promise p{font-size:.92rem;line-height:1.6;margin:0;opacity:.85}
+@media(max-width:980px){.hist{grid-template-columns:1fr}}
 
-  .counter{display:inline-flex;align-items:center;gap:.5rem;margin-top:1.6rem;background:var(--black);color:var(--yellow);
-    padding:.6rem 1.2rem;border-radius:999px;font-weight:700;font-size:.85rem}
+/* neuro */
+.neuro-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.4rem;margin-top:2.5rem}
+.n-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:1.7rem;
+  backdrop-filter:blur(8px);transition:.35s;will-change:transform}
+.n-card:hover{transform:translateY(-8px);border-color:var(--yellow);box-shadow:0 20px 44px -18px rgba(255,198,26,.35)}
+.n-card .ico{width:50px;height:50px;border-radius:12px;background:var(--yellow);color:var(--navy);display:grid;place-items:center;margin-bottom:1.1rem}
+.n-card h3{font-family:var(--fd);font-size:1rem;margin-bottom:.5rem;color:#fff}
+.n-card p{font-size:.92rem;line-height:1.65;color:rgba(255,255,255,.75)}
+.neuro-note{margin-top:2.2rem;font-weight:700;color:var(--yellow);font-size:1.05rem}
 
-  /* ---------- MARQUEE ---------- */
-  .marquee{overflow:hidden;background:var(--black);border-block:4px solid var(--fuchsia)}
-  .mq{display:flex;gap:2.6rem;width:max-content;padding:.85rem 0;animation:mq 24s linear infinite}
-  .mq span{font-family:var(--fd);font-weight:800;letter-spacing:.14em;color:var(--yellow);white-space:nowrap;font-size:.85rem}
-  .mq em{font-style:normal;color:var(--fuchsia)}
-  .mq i{font-style:normal;color:var(--blue-light)}
-  @keyframes mq{to{transform:translateX(-50%)}}
+/* ═══ MENÚ (tabs) ═══ */
+.star-banner{display:flex;gap:1.5rem;align-items:center;background:var(--navy);color:#fff;border-radius:22px;
+  padding:1.6rem 2rem;margin:2.2rem 0;border:3px dashed var(--yellow);flex-wrap:wrap}
+.star-banner .price{font-family:var(--fd);font-weight:900;font-size:2rem;color:var(--yellow)}
+.star-banner h3{font-family:var(--fd);font-size:1.25rem}
+.star-banner p{opacity:.8;font-size:.95rem}
+.tabs{display:flex;gap:.7rem;flex-wrap:wrap;margin:2rem 0 1.6rem}
+.tab{padding:.65rem 1.3rem;border-radius:999px;border:2px solid var(--navy);background:transparent;color:var(--navy);
+  font-family:var(--fd);font-weight:700;font-size:.88rem;cursor:pointer;transition:.3s}
+.tab.active,.tab:hover{background:var(--grad);color:#fff;border-color:transparent;transform:translateY(-2px)}
+.panel-menu{display:none;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:1.2rem;animation:fadein .45s ease}
+.panel-menu.show{display:grid}
+@keyframes fadein{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.m-item{background:#fff;border-radius:16px;padding:1.2rem 1.4rem;border:2px solid rgba(26,26,26,.12);transition:.3s;display:flex;justify-content:space-between;gap:1rem;align-items:center}
+.m-item:hover{border-color:var(--blue);transform:translateY(-4px);box-shadow:0 14px 30px -14px rgba(30,111,204,.4)}
+.m-item h4{font-family:var(--fd);font-size:.98rem}
+.m-item small{display:block;font-weight:400;opacity:.65;margin-top:.25rem;line-height:1.45}
+.m-item .p{font-family:var(--fd);font-weight:800;color:var(--fuchsia);white-space:nowrap}
+.m-item.star{background:var(--yellow);border-color:var(--navy)}
+.note{margin-top:1.6rem;font-size:.82rem;opacity:.6}
 
-  /* ---------- SECCIONES ---------- */
-  section{padding:64px 0}
-  .kicker{font-size:.75rem;font-weight:800;letter-spacing:.24em;color:var(--fuchsia);text-transform:uppercase}
-  h2{font-family:var(--fd);font-weight:800;font-size:clamp(1.6rem,3.4vw,2.2rem);margin:.5rem 0 1rem;letter-spacing:-.5px;color:var(--black)}
-  .pitch{line-height:1.7;max-width:56ch;color:#4a4a4a}
+/* promos */
+.promos{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1.3rem;margin-top:2.5rem}
+.promo{background:var(--yellow);border-radius:18px;padding:1.6rem 1.4rem;color:var(--navy);position:relative;
+  overflow:hidden;transition:.35s;border-bottom:6px solid var(--fuchsia)}
+.promo:hover{transform:translateY(-8px) rotate(-1deg)}
+.promo .day{font-family:var(--fd);font-weight:900;font-size:.8rem;letter-spacing:.14em;background:var(--navy);color:var(--yellow);display:inline-block;padding:.3rem .8rem;border-radius:999px;margin-bottom:.8rem}
+.promo h3{font-family:var(--fd);font-size:1.05rem;margin-bottom:.4rem}
+.promo p{font-size:.9rem;line-height:1.5;font-weight:600}
 
-  /* ---------- REGISTRO ---------- */
-  .reg{background:var(--white);
-    background-image:linear-gradient(rgba(30,111,204,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(30,111,204,.06) 1px,transparent 1px);
-    background-size:36px 36px}
-  .reg .wrap{max-width:1100px;display:grid;grid-template-columns:.85fr 1.15fr;gap:3rem;align-items:start}
+/* ═══ REGISTRO ═══ */
+.reg{display:grid;grid-template-columns:.9fr 1.1fr;gap:3.5rem;align-items:center}
+.ticket{width:230px;margin:0 auto;background:var(--yellow);border-radius:18px;padding:1.6rem 1.2rem 0;position:relative;
+  transform:rotate(-4deg);box-shadow:0 24px 50px -20px rgba(26,26,26,.5);transition:.4s;text-align:center}
+.ticket:hover{transform:rotate(0) scale(1.04)}
+.ticket::before{content:'';position:absolute;top:14px;left:50%;transform:translateX(-50%);width:26px;height:26px;
+  background:var(--navy);border-radius:50%}
+.ticket h3{font-family:var(--fd);font-weight:900;font-size:1.15rem;margin:1.2rem 0 .3rem}
+.ticket p{font-size:.82rem;font-weight:600}
+.ticket .cupon{margin:1.2rem -1.2rem 0;background:var(--fuchsia);color:#fff;padding:1rem;border-top:3px dashed var(--navy);border-radius:0 0 18px 18px}
+.ticket .cupon b{font-family:var(--fd);font-size:1.5rem;font-weight:900;display:block}
+.ticket .cupon small{font-size:.68rem;letter-spacing:.1em}
+.reg form{display:grid;gap:1rem;margin-top:1.8rem}
+.reg .field{display:grid;gap:.35rem}
+.reg label{font-weight:700;font-size:.85rem}
+.reg input{padding:1rem 1.3rem;border-radius:14px;border:2px solid rgba(26,26,26,.2);background:#fff;font-family:var(--fb);font-size:1rem;transition:.3s}
+.reg input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 4px rgba(30,111,204,.18)}
+.reg input.invalid{border-color:var(--fuchsia)}
+.reg .err{color:var(--fuchsia);font-size:.78rem;font-weight:600;min-height:1.1em}
+.reg .hint{font-size:.76rem;opacity:.6}
+.radios{display:flex;gap:1.5rem;font-weight:600;flex-wrap:wrap}
+.radios label{display:flex;gap:.5rem;align-items:center;cursor:pointer}
+.radios input{width:auto;accent-color:var(--fuchsia);padding:0}
+.msg{display:none;margin-top:1.2rem;border-radius:16px;padding:1.1rem 1.4rem;font-weight:600;line-height:1.6}
+.msg.show{display:block;animation:fadein .5s ease}
+.msg.ok{background:var(--navy);color:#fff;border-left:6px solid var(--yellow)}
+.msg.error{background:#fff0f6;color:var(--fuchsia);border-left:6px solid var(--fuchsia)}
+@media(max-width:900px){.reg{grid-template-columns:1fr}}
 
-  .ticket{width:230px;margin:0 auto;background:var(--yellow);border:3px solid var(--black);border-radius:var(--radius-lg);
-    padding:1.6rem 1.2rem 0;position:relative;transform:rotate(-4deg);box-shadow:8px 8px 0 var(--black);transition:.4s;text-align:center}
-  .ticket:hover{transform:rotate(0) scale(1.04)}
-  .ticket::before{content:'';position:absolute;top:14px;left:50%;transform:translateX(-50%);width:26px;height:26px;background:var(--black);border-radius:50%}
-  .ticket h3{font-family:var(--fd);font-weight:800;font-size:1.1rem;margin:1.2rem 0 .3rem}
-  .ticket p{font-size:.8rem;font-weight:600}
-  .ticket .cupon{margin:1.2rem -1.2rem 0;background:var(--black);color:var(--yellow);padding:1rem;border-top:3px dashed var(--fuchsia);border-radius:0 0 16px 16px}
-  .ticket .cupon b{font-family:var(--fd);font-size:1.4rem;font-weight:800;display:block;color:var(--yellow)}
-  .ticket .cupon small{font-size:.65rem;letter-spacing:.1em;color:#fff}
+/* ═══ POPUP de promoción activa ═══ */
+.modal-backdrop{position:fixed;inset:0;background:rgba(26,26,26,.65);display:none;align-items:center;justify-content:center;padding:1.5rem;z-index:99}
+.modal-backdrop.show{display:flex}
+.modal-promo{background:#fff;border:3px solid var(--navy);border-radius:20px;max-width:420px;width:100%;overflow:hidden;box-shadow:10px 10px 0 var(--fuchsia)}
+.modal-promo img{width:100%;height:180px;object-fit:cover;display:block}
+.modal-promo .inner{padding:1.6rem}
+.modal-promo h3{font-family:var(--fd);font-weight:800;font-size:1.3rem;margin:.4rem 0}
+.modal-promo p{line-height:1.6}
+.modal-promo .vigencia{font-size:.78rem;opacity:.65;margin-top:.5rem}
+.modal-promo .chip{display:inline-block;padding:.15rem .6rem;border-radius:999px;background:var(--bone);font-size:.72rem;font-weight:700;margin:.3rem .3rem 0 0}
+.modal-promo .actions{display:flex;justify-content:flex-end;gap:.7rem;margin-top:1.4rem}
 
-  .card{background:var(--white);border:3px solid var(--black);border-radius:var(--radius-lg);padding:32px 28px;
-    box-shadow:10px 10px 0 var(--yellow);position:relative;overflow:hidden}
-  .card::before{content:'';position:absolute;top:0;left:0;right:0;height:6px;background:var(--grad)}
-  form{display:grid;gap:1rem;margin-top:1.6rem}
-  .field{display:grid;gap:.35rem}
-  label{font-weight:700;font-size:.85rem;color:var(--black)}
-  input{padding:14px 16px;border:2px solid #DDD;border-radius:var(--radius);background:var(--gray);
-    font-family:inherit;font-size:1rem;color:var(--black);transition:.3s}
-  input:focus{outline:none;border-color:var(--fuchsia);background:var(--white);box-shadow:0 0 0 4px rgba(214,33,143,.12)}
-  input.invalid{border-color:var(--fuchsia)}
-  .err{color:var(--fuchsia);font-size:.78rem;font-weight:600;min-height:1.1em}
-  .hint{font-size:.76rem;opacity:.6}
-  .radios{display:flex;gap:1.5rem;font-weight:600;flex-wrap:wrap;align-items:center}
-  .radios label{display:flex;gap:.5rem;align-items:center;cursor:pointer;font-weight:600}
-  .radios input{width:auto;accent-color:var(--fuchsia);padding:0}
+/* ubicación */
+.ubi{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.4rem;margin-top:2.5rem}
+.ubi-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:18px;padding:1.8rem;transition:.3s}
+.ubi-card:hover{border-color:var(--fuchsia);transform:translateY(-6px)}
+.ubi-card h3{font-family:var(--fd);color:var(--yellow);margin-bottom:.9rem;font-size:1rem}
+.ubi-card p{color:rgba(255,255,255,.8);line-height:1.7;font-size:.95rem}
+.ubi-card b{color:#fff}
 
-  .btn{display:inline-flex;align-items:center;gap:8px;padding:16px 32px;border-radius:50px;font-family:var(--fd);
-    font-weight:800;font-size:1rem;text-decoration:none;border:none;cursor:pointer;transition:.3s;
-    background:var(--black);color:var(--yellow);box-shadow:6px 6px 0 var(--fuchsia)}
-  .btn:hover:not(:disabled){transform:translate(-2px,-4px);box-shadow:9px 10px 0 var(--blue)}
-  .btn:disabled{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none;background:#CCC;color:#888}
-  .btn.ghost{background:transparent;color:var(--black);border:2px solid var(--black);box-shadow:none}
-  .btn.ghost:hover{background:var(--black);color:var(--yellow)}
-  .btn.small{padding:10px 20px;font-size:.85rem}
+footer{background:#081130;color:rgba(255,255,255,.7);padding:2.6rem 5vw;display:flex;flex-wrap:wrap;gap:1.2rem;justify-content:space-between;align-items:center;font-size:.9rem}
+footer .fl-logo{font-family:var(--fd);font-weight:900;color:#fff}
+footer .fl-logo b{color:var(--fuchsia)}
+.socials{display:flex;gap:1.4rem}
+.socials a{color:var(--yellow);text-decoration:none;font-weight:700}
+.socials a:hover{color:var(--fuchsia)}
 
-  .msg{display:none;margin-top:1.2rem;border-radius:var(--radius);padding:1.1rem 1.4rem;font-weight:600;line-height:1.6}
-  .msg.show{display:block}
-  .msg.ok{background:var(--black);color:#fff;border-left:6px solid var(--yellow)}
-  .msg.error{background:#fff0f6;color:var(--fuchsia);border-left:6px solid var(--fuchsia)}
-
-  @media(max-width:900px){.reg .wrap{grid-template-columns:1fr}}
-
-  footer{background:var(--black);color:rgba(255,255,255,.75);padding:40px 5vw 28px;text-align:center;font-size:.85rem;position:relative}
-  footer::before{content:'';position:absolute;top:0;left:0;right:0;height:6px;background:var(--grad)}
-
-  /* ---------- POPUP de promoción ---------- */
-  .modal-backdrop{position:fixed;inset:0;background:rgba(26,26,26,.65);display:none;align-items:center;justify-content:center;padding:1.5rem;z-index:50}
-  .modal-backdrop.show{display:flex}
-  .modal-promo{background:#fff;border:3px solid var(--black);border-radius:var(--radius-lg);max-width:420px;width:100%;overflow:hidden;box-shadow:10px 10px 0 var(--fuchsia)}
-  .modal-promo img{width:100%;height:180px;object-fit:cover;display:block}
-  .modal-promo .inner{padding:1.6rem}
-  .modal-promo h3{font-family:var(--fd);font-weight:800;font-size:1.3rem;margin:.4rem 0}
-  .modal-promo p{line-height:1.6}
-  .modal-promo .vigencia{font-size:.78rem;opacity:.65;margin-top:.5rem}
-  .chip{display:inline-block;padding:.15rem .6rem;border-radius:999px;background:var(--gray);font-size:.72rem;font-weight:700;margin:.3rem .3rem 0 0}
-  .modal-promo .actions{display:flex;justify-content:flex-end;gap:.7rem;margin-top:1.4rem}
-
-  @media(max-width:640px){
-    .box-frame{padding:34px 20px 38px}
-    h2{font-size:1.6rem}
-    .card{padding:24px 20px}
-    .doodle{display:none}
-  }
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .8s ease var(--d,0s),transform .8s ease var(--d,0s)}
+.reveal.visible{opacity:1;transform:none}
+#toast{position:fixed;left:50%;bottom:2rem;transform:translate(-50%,20px);opacity:0;z-index:99;padding:1rem 1.8rem;
+  border-radius:999px;background:var(--grad);color:#fff;font-weight:700;transition:.45s;pointer-events:none;box-shadow:0 16px 40px -12px rgba(214,33,143,.5)}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+@media(hover:none){#glow{display:none}}
 </style>
 </head>
 <body>
 
-<header>
-  <a class="logo" href="/">
+<canvas id="stars"></canvas>
+<div id="glow"></div>
+
+<header id="hdr">
+  <a class="logo" href="#inicio" aria-label="Desencajado">
+    <!-- mini logo SVG -->
     <svg viewBox="0 0 60 60"><circle cx="22" cy="22" r="13" fill="#1E6FCC"/><circle cx="38" cy="22" r="13" fill="#D6218F"/><circle cx="30" cy="16" r="10" fill="#1E6FCC"/><circle cx="34" cy="14" r="8" fill="#D6218F"/><rect x="17" y="20" width="12" height="9" rx="3" fill="#1A1A1A"/><rect x="31" y="20" width="12" height="9" rx="3" fill="#1A1A1A"/><path d="M14 40 L46 40 L42 56 L18 56 Z" fill="#1E6FCC" stroke="#FFC61A" stroke-width="2.5"/></svg>
     DESENCAJADO
   </a>
-  <a href="/cuenta.html" class="acct">Ya soy cliente → Mi cuenta</a>
+  <nav>
+    <a href="#historia">Historia</a>
+    <a href="#menu">Menú</a>
+    <a href="#promos">Promos</a>
+    <a href="#ubicacion">Ubicación</a>
+    <a href="/cuenta.html">Ya soy cliente →</a>
+    <a class="btn btn-primary" href="#registro" style="padding:.55rem 1.3rem">Regístrate 🧠</a>
+  </nav>
 </header>
 
-<div class="hero">
-  <svg class="doodle" style="top:10%;left:6%" width="40" height="60" viewBox="0 0 40 60"><path d="M24 0 L4 30 h12 L10 60 L36 24 H22 L32 0 Z" fill="#fff"/></svg>
-  <svg class="doodle d2" style="top:14%;right:7%" width="56" height="48" viewBox="0 0 56 48"><path d="M2 26 L54 6 L30 46 L24 30 Z" fill="#1E6FCC"/></svg>
-  <svg class="doodle d3" style="bottom:12%;left:8%" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="14" fill="none" stroke="#D6218F" stroke-width="9" stroke-dasharray="8 5"/></svg>
-
-  <div class="wrap">
+<main>
+<!-- ═════════ HERO ═════════ -->
+<section class="hero" id="inicio">
+  <div>
     <span class="badge"><i></i> APERTURA OFICIAL · 29 OCT 2026 · HUARAZ</span>
-    <div class="box-frame">
-      <h1>Sé de los primeros en <span class="grad">pensar fuera de la caja.</span></h1>
-      <p class="sub">Regístrate para la apertura y asegura tu <b>Frappé de Lúcuma gratis</b>.</p>
-      <p class="loc">📍 Av. Centenario, Huaraz — frente a la UNASAM</p>
-      <div class="cd" aria-label="Cuenta regresiva a la apertura">
-        <div><b id="cd-d">--</b><span>DÍAS</span></div>
-        <div><b id="cd-h">--</b><span>HORAS</span></div>
-        <div><b id="cd-m">--</b><span>MIN</span></div>
-        <div><b id="cd-s">--</b><span>SEG</span></div>
-      </div>
-      <div class="counter">🧠 <span id="counter-text">Cargando personas registradas…</span></div>
+    <h1>Pensando<br><span class="grad">fuera de la caja.</span></h1>
+    <p class="sub" id="tagline" data-text="Acá nadie es raro. Todos somos desencajados.">Acá nadie es raro. <b>Todos somos desencajados.</b></p>
+    <div class="cta-row">
+      <a href="#registro" class="btn btn-primary">Regístrate para la apertura</a>
+      <a href="#menu" class="btn btn-ghost">Ver el menú 🍟</a>
     </div>
+    <p class="loc">📍 Av. Centenario, Huaraz — frente a la UNASAM</p>
+    <div class="cd" aria-label="Cuenta regresiva a la apertura">
+      <div><b id="cd-d">--</b><span>DÍAS</span></div>
+      <div><b id="cd-h">--</b><span>HORAS</span></div>
+      <div><b id="cd-m">--</b><span>MIN</span></div>
+      <div><b id="cd-s">--</b><span>SEG</span></div>
+    </div>
+    <div class="counter">🧠 <span id="counter-text">Cargando personas registradas…</span></div>
   </div>
-</div>
 
+  <!-- ═══ MASCOT 100% SVG ═══ -->
+  <div class="scene" aria-hidden="true">
+    <svg viewBox="0 0 560 560">
+      <defs>
+        <radialGradient id="halo" cx=".5" cy=".5" r=".5">
+          <stop offset="0" stop-color="#D6218F" stop-opacity=".35"/>
+          <stop offset=".6" stop-color="#1E6FCC" stop-opacity=".18"/>
+          <stop offset="1" stop-color="#D6218F" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="lens" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#8ecbff"/><stop offset="1" stop-color="#1E6FCC"/>
+        </linearGradient>
+        <clipPath id="cL"><rect x="196" y="168" width="78" height="58" rx="16"/></clipPath>
+        <clipPath id="cR"><rect x="286" y="168" width="78" height="58" rx="16"/></clipPath>
+      </defs>
+
+      <circle cx="280" cy="250" r="220" fill="url(#halo)"/>
+
+      <!-- doodles -->
+      <g class="fl2">
+        <circle cx="92" cy="108" r="24" fill="#FFC61A" stroke="#1A1A1A" stroke-width="5"/>
+        <rect x="82" y="130" width="20" height="12" rx="3" fill="#1A1A1A"/>
+        <g stroke="#FFC61A" stroke-width="6" stroke-linecap="round">
+          <path d="M92 70v-12M56 108H44M128 108h12M64 80l-9-9M120 80l9-9"/>
+        </g>
+      </g>
+      <g class="fl3"><path d="M472 78 L440 146 L463 146 L436 214 L494 132 L469 132 L494 78 Z" fill="#FFC61A" stroke="#1A1A1A" stroke-width="5" stroke-linejoin="round"/></g>
+      <g class="fl"><path d="M58 262 L132 234 L96 288 Z" fill="#D6218F" stroke="#1A1A1A" stroke-width="4" stroke-linejoin="round"/><path d="M58 262 L96 288 L92 268 Z" fill="#9c1770"/></g>
+      <g class="fl3"><path d="M468 300 L532 274 L502 326 Z" fill="#1E6FCC" stroke="#1A1A1A" stroke-width="4" stroke-linejoin="round"/><path d="M468 300 L502 326 L498 306 Z" fill="#155299"/></g>
+      <g class="spin"><circle cx="82" cy="428" r="20" fill="none" stroke="#D6218F" stroke-width="12" stroke-dasharray="10 7"/></g>
+      <g class="spin" style="animation-direction:reverse"><circle cx="482" cy="432" r="17" fill="none" stroke="#1E6FCC" stroke-width="11" stroke-dasharray="9 6"/></g>
+      <g fill="#FFC61A" stroke="#1A1A1A" stroke-width="3">
+        <path class="fl" d="M156 52 l4 9 10 1 -7 7 2 10 -9-5 -9 5 2-10 -7-7 10-1 Z"/>
+        <path class="fl2" d="M416 46 l4 9 10 1 -7 7 2 10 -9-5 -9 5 2-10 -7-7 10-1 Z" fill="#D6218F"/>
+      </g>
+
+      <!-- tallos -->
+      <g fill="none" stroke-width="10" stroke-linecap="round">
+        <path d="M240 300 C238 336 228 348 226 372" stroke="#1E6FCC"/>
+        <path d="M268 306 C268 340 262 352 262 374" stroke="#1A1A1A"/>
+        <path d="M296 306 C298 340 302 352 302 374" stroke="#D6218F"/>
+        <path d="M322 300 C326 336 334 348 336 372" stroke="#9c1770"/>
+      </g>
+
+      <!-- solapa trasera -->
+      <path d="M188 332 L372 332 L398 284 L162 284 Z" fill="#0d0d0d"/>
+
+      <!-- CEREBRO -->
+      <g class="fl">
+        <g fill="#1E6FCC" stroke="#1A1A1A" stroke-width="5">
+          <circle cx="228" cy="140" r="48"/><circle cx="192" cy="186" r="44"/><circle cx="206" cy="240" r="42"/>
+          <circle cx="250" cy="264" r="40"/><circle cx="252" cy="104" r="38"/>
+        </g>
+        <g fill="#D6218F" stroke="#1A1A1A" stroke-width="5">
+          <circle cx="332" cy="140" r="48"/><circle cx="368" cy="186" r="44"/><circle cx="354" cy="240" r="42"/>
+          <circle cx="310" cy="264" r="40"/><circle cx="308" cy="104" r="38"/>
+        </g>
+        <g fill="#4d94e6" opacity=".8"><circle cx="214" cy="128" r="14"/><circle cx="186" cy="196" r="11"/><circle cx="238" cy="252" r="12"/></g>
+        <g fill="#ff4da1" opacity=".8"><circle cx="346" cy="128" r="14"/><circle cx="374" cy="196" r="11"/><circle cx="322" cy="252" r="12"/></g>
+        <path d="M280 84 q-8 62 0 104 q6 52 0 92" fill="none" stroke="#1A1A1A" stroke-width="6" opacity=".55"/>
+        <!-- lentes -->
+        <g>
+          <path d="M196 192 L158 182 M364 192 L402 182" stroke="#101720" stroke-width="9" stroke-linecap="round"/>
+          <rect x="196" y="168" width="78" height="58" rx="16" fill="url(#lens)" stroke="#101720" stroke-width="8"/>
+          <rect x="286" y="168" width="78" height="58" rx="16" fill="url(#lens)" stroke="#101720" stroke-width="8"/>
+          <path d="M274 190 q6 -10 12 0" fill="none" stroke="#101720" stroke-width="8"/>
+          <g clip-path="url(#cL)" stroke="#dff0ff" stroke-width="7" opacity=".65"><path d="M204 232 L252 162"/><path d="M228 234 L276 164"/></g>
+          <g clip-path="url(#cR)" stroke="#dff0ff" stroke-width="7" opacity=".65"><path d="M294 232 L342 162"/><path d="M318 234 L366 164"/></g>
+        </g>
+      </g>
+
+      <!-- PAPAS -->
+      <g class="fl2">
+        <g fill="#FFD84D" stroke="#1A1A1A" stroke-width="4">
+          <rect x="112" y="252" width="13" height="62" rx="3" transform="rotate(-14 118 283)"/>
+          <rect x="128" y="238" width="13" height="72" rx="3" transform="rotate(-7 134 274)"/>
+          <rect x="147" y="226" width="13" height="84" rx="3"/>
+          <rect x="165" y="234" width="13" height="76" rx="3" transform="rotate(6 171 272)"/>
+          <rect x="181" y="248" width="13" height="62" rx="3" transform="rotate(13 187 279)"/>
+        </g>
+        <path d="M118 300 L202 300 L190 374 L130 374 Z" fill="#FFC61A" stroke="#1A1A1A" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M118 300 L202 300 L198 322 L122 322 Z" fill="#ffdd55" stroke="#1A1A1A" stroke-width="4"/>
+      </g>
+
+      <!-- CAFÉ -->
+      <g class="fl3">
+        <ellipse cx="418" cy="374" rx="48" ry="11" fill="#fff" stroke="#1A1A1A" stroke-width="4"/>
+        <path d="M452 322 q28 4 24 28 q-4 22 -28 17" fill="none" stroke="#1A1A1A" stroke-width="6"/>
+        <path d="M380 314 q0 54 38 54 q38 0 38 -54 Z" fill="#fff" stroke="#1A1A1A" stroke-width="5"/>
+        <ellipse cx="418" cy="316" rx="38" ry="10" fill="#4a2c17" stroke="#1A1A1A" stroke-width="4"/>
+        <text x="418" y="352" text-anchor="middle" font-family="Poppins" font-weight="900" font-size="24" fill="#D6218F">D</text>
+        <g stroke="#9aa7c9" stroke-width="4" fill="none" stroke-linecap="round" opacity=".8">
+          <path d="M406 292 q-6 -12 2 -22"/><path d="M428 292 q6 -12 -2 -22"/>
+        </g>
+      </g>
+
+      <!-- CAJA frente -->
+      <path d="M150 350 L410 350 L392 496 L168 496 Z" fill="#1E6FCC" stroke="#1A1A1A" stroke-width="6" stroke-linejoin="round"/>
+      <path d="M150 350 L168 496 L204 496 L188 350 Z" fill="#1A1A1A" opacity=".35"/>
+      <rect x="146" y="342" width="268" height="14" rx="4" fill="#FFC61A" stroke="#1A1A1A" stroke-width="4"/>
+      <text x="284" y="452" text-anchor="middle" font-family="Poppins" font-weight="900" font-size="76" fill="#D6218F">D</text>
+      <text x="279" y="447" text-anchor="middle" font-family="Poppins" font-weight="900" font-size="76" fill="#FFC61A">D</text>
+    </svg>
+  </div>
+</section>
+
+<!-- ═════════ MARQUEE ═════════ -->
 <div class="marquee" aria-hidden="true">
   <div class="mq">
-    <span>MENTES DIFERENTES</span><span><em>✦</em> IDEAS EXTRAORDINARIAS</span><span><i>✦</i> PAPAS Y CAFÉ</span><span>SI NO ENCAJAS, ESTÁS EN EL LUGAR CORRECTO</span><span><em>✦</em> HUARAZ · FRENTE A UNASAM</span>
-    <span>MENTES DIFERENTES</span><span><em>✦</em> IDEAS EXTRAORDINARIAS</span><span><i>✦</i> PAPAS Y CAFÉ</span><span>SI NO ENCAJAS, ESTÁS EN EL LUGAR CORRECTO</span><span><em>✦</em> HUARAZ · FRENTE A UNASAM</span>
+    <span>🍟 PAPAS FRITAS</span><span><em>✦</em> JUGOS FRESCOS</span><span>🍚 ARROZ CHAUFA</span><span><em>✦</em> FRAPPÉS</span><span>☕ CAFÉ</span><span><em>✦</em> MENTES DIFERENTES, IDEAS EXTRAORDINARIAS</span>
+    <span>🍟 PAPAS FRITAS</span><span><em>✦</em> JUGOS FRESCOS</span><span>🍚 ARROZ CHAUFA</span><span><em>✦</em> FRAPPÉS</span><span>☕ CAFÉ</span><span><em>✦</em> MENTES DIFERENTES, IDEAS EXTRAORDINARIAS</span>
   </div>
 </div>
 
-<section class="reg" id="registro">
-  <div class="wrap">
-    <div>
+<!-- ═════════ HISTORIA ═════════ -->
+<section id="historia">
+  <div class="hist">
+    <div class="reveal">
+      <span class="kicker">// Nuestra historia</span>
+      <h2>¿POR QUÉ "DESENCAJADO"?</h2>
+      <p>Desencajado no nació de un estudio de mercado. Nació de una palabra que muchas veces se usa para describir, de forma despectiva, a quienes piensan, sienten y se mueven distinto.</p>
+      <p>Nuestro fundador, <b>Iomar</b>, tiene TDAH. Sus hijos tienen TDAH y autismo. "Desencajado" era la etiqueta — y decidimos resignificarla: convertirla en bandera, en identidad, en punto de encuentro.</p>
+      <p>El cerebro que sale de la caja en nuestro logo no es solo un ícono. Es la idea completa: ideas que explotan, sabores que sorprenden, mentes que se atreven a salir del molde.</p>
+      <p class="quote">Acá nadie es raro. Todos somos desencajados.</p>
+    </div>
+    <div class="promises">
+      <div class="promise reveal" style="--d:.05s"><h3>🍟 Sabor inesperado</h3><p>Combinaciones que no vas a encontrar en otro lado de Huaraz (empezando por nuestro frappé de lúcuma artesanal).</p></div>
+      <div class="promise reveal" style="--d:.15s"><h3>🤝 Espacio de verdad bienvenida</h3><p>Sin presión de "encajar", sin miradas raras. Entra siendo quien eres.</p></div>
+      <div class="promise reveal" style="--d:.25s"><h3>💛 Precios honestos</h3><p>Pensados para el bolsillo del estudiante UNASAM, sin trampas ni "premium" innecesario.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ NEURO-AMIGABLE ═════════ -->
+<section class="on-dark" id="neuro">
+  <div class="reveal">
+    <span class="kicker">// Filosofía neuro-amigable</span>
+    <h2>UN ESPACIO PARA MENTES QUE PIENSAN DISTINTO</h2>
+    <p style="max-width:70ch;color:rgba(255,255,255,.75);line-height:1.7">Desencajado es, hasta donde sabemos, el primer espacio food &amp; beverage en Huaraz pensado explícitamente para ser amigable con personas neurodivergentes. No es un gancho de marketing — es cómo operamos todos los días:</p>
+  </div>
+  <div class="neuro-grid">
+    <div class="n-card reveal" style="--d:.05s"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 10v4h4l5 4V6l-5 4H4Z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg></div><h3>Zonas diferenciadas</h3><p>Espacio social y espacio de estudio silencioso, para que cada mente esté a gusto.</p></div>
+    <div class="n-card reveal" style="--d:.1s"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h3v3H8zM13 8h3M13 12h3M8 14h3"/></svg></div><h3>Menú visual claro</h3><p>Descriptores de temperatura, textura e intensidad. Pedir es fácil, sin preguntar en voz alta.</p></div>
+    <div class="n-card reveal" style="--d:.15s"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></div><h3>Pide a tu manera</h3><p>Mostrador, QR + WhatsApp, o carta con casillas para marcar. Cero interacción forzada.</p></div>
+    <div class="n-card reveal" style="--d:.2s"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2 2M17.1 17.1l2 2M19.1 4.9l-2 2M6.9 17.1l-2 2"/></svg></div><h3>Luz cálida</h3><p>Iluminación amable, sin fluorescentes agresivos. Tu cerebro lo agradece.</p></div>
+    <div class="n-card reveal" style="--d:.25s"><div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3"/><circle cx="16" cy="10" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5M13 20c0-2.5 1.5-4 3-4s3 1.5 3 4"/></svg></div><h3>Equipo que entiende</h3><p>Capacitado para comprender — no para "manejar" — a quienes procesan el mundo distinto.</p></div>
+  </div>
+  <p class="neuro-note reveal">No prometemos ser perfectos. Prometemos ser honestos sobre por qué existimos. 💛</p>
+</section>
+
+<!-- ═════════ MENÚ ═════════ -->
+<section id="menu">
+  <div class="reveal">
+    <span class="kicker">// El menú</span>
+    <h2>PAPAS, JUGOS, CHAUFA Y MÁS</h2>
+  </div>
+
+  <div class="star-banner reveal">
+    <span style="font-size:2.4rem">⭐</span>
+    <div style="flex:1;min-width:220px">
+      <h3>PAPAS EN CONO — el producto estrella</h3>
+      <p>Crujientes, abundantes y con toppings que explotan mentes. Desde S/3.00 hasta para compartir.</p>
+    </div>
+    <span class="price">S/3.00 – S/11.00</span>
+  </div>
+
+  <div class="tabs reveal">
+    <button class="tab active" data-t="papas">🍟 Papas en cono</button>
+    <button class="tab" data-t="frappes">🥤 Frappés &amp; Jugos</button>
+    <button class="tab" data-t="cafes">☕ Cafés &amp; Andinas</button>
+    <button class="tab" data-t="chaufa">🍚 Arroz Chaufa</button>
+    <button class="tab" data-t="combos">🧠 Combos</button>
+  </div>
+
+  <div class="panel-menu show" id="papas">
+    <div class="m-item star"><div><h4>Mini Snack</h4><small>100 g · para el antojo rápido</small></div><span class="p">S/3.00</span></div>
+    <div class="m-item star"><div><h4>Clásico Chico</h4><small>130 g</small></div><span class="p">S/4.00</span></div>
+    <div class="m-item star"><div><h4>Estándar Ideal ⭐</h4><small>180 g · el favorito</small></div><span class="p">S/6.00</span></div>
+    <div class="m-item star"><div><h4>Grande Generoso</h4><small>220 g</small></div><span class="p">S/8.00</span></div>
+    <div class="m-item star"><div><h4>Max Compartir</h4><small>280 g · para el grupo</small></div><span class="p">S/11.00</span></div>
+    <div class="m-item"><div><h4>"Cerebro Frito"</h4><small>cheddar + salsa picante</small></div><span class="p">S/6.00</span></div>
+    <div class="m-item"><div><h4>"El Glitch"</h4><small>ají + ajo + ketchup</small></div><span class="p">S/6.50</span></div>
+    <div class="m-item"><div><h4>"Algoritmo del Antojo"</h4><small>2 toppings a elegir</small></div><span class="p">S/7.00</span></div>
+    <div class="m-item"><div><h4>"Reset Total"</h4><small>cheddar + tocineta</small></div><span class="p">S/7.90</span></div>
+  </div>
+
+  <div class="panel-menu" id="frappes">
+    <div class="m-item"><div><h4>Frappé de Lúcuma "Firma" ⭐</h4><small>lúcuma, café y leche, con crema y salsa de lúcuma</small></div><span class="p">S/7.00</span></div>
+    <div class="m-item"><div><h4>Frappé Neuroshock</h4><small>café fuerte + chocolate</small></div><span class="p">S/6.50</span></div>
+    <div class="m-item"><div><h4>Frappé Cortex Dulce</h4><small>café + caramelo + crema</small></div><span class="p">S/6.00</span></div>
+    <div class="m-item"><div><h4>Frappé Explosión Rosa</h4><small>fresa + leche condensada</small></div><span class="p">S/5.50</span></div>
+    <div class="m-item"><div><h4>Frappé Fuera de la Caja</h4><small>oreo + vainilla</small></div><span class="p">S/6.50</span></div>
+    <div class="m-item"><div><h4>Frappé ElectroCafé ⚡</h4><small>edición limitada, con energizante</small></div><span class="p">S/7.50</span></div>
+    <div class="m-item"><div><h4>Jugo de Maracuyá</h4><small>fresco, del día</small></div><span class="p">S/4.00</span></div>
+    <div class="m-item"><div><h4>Jugo de Naranja</h4><small>exprimido al momento</small></div><span class="p">S/3.50</span></div>
+    <div class="m-item"><div><h4>Jugo Surtido "Mente Libre"</h4><small>frutas de temporada</small></div><span class="p">S/4.50</span></div>
+  </div>
+
+  <div class="panel-menu" id="cafes">
+    <div class="m-item"><div><h4>Espresso clásico</h4></div><span class="p">S/4.50</span></div>
+    <div class="m-item"><div><h4>Americano</h4></div><span class="p">S/5.00</span></div>
+    <div class="m-item"><div><h4>Cappuccino "Desencajado"</h4></div><span class="p">S/6.50</span></div>
+    <div class="m-item"><div><h4>Latte clásico</h4></div><span class="p">S/7.00</span></div>
+    <div class="m-item"><div><h4>Mochaccino Chocolate-Amor</h4></div><span class="p">S/7.90</span></div>
+    <div class="m-item"><div><h4>Café con leche (estudiante)</h4></div><span class="p">S/2.00</span></div>
+    <div class="m-item"><div><h4>Americano económico (plan estudiante)</h4></div><span class="p">S/1.50</span></div>
+    <div class="m-item"><div><h4>Emoliente regional</h4></div><span class="p">S/1.50</span></div>
+    <div class="m-item"><div><h4>Ponche de quinua</h4></div><span class="p">S/3.00</span></div>
+    <div class="m-item"><div><h4>Chocolate caliente peruano</h4></div><span class="p">S/4.00</span></div>
+    <div class="m-item"><div><h4>Mate de muña premium</h4></div><span class="p">S/2.50</span></div>
+    <div class="m-item"><div><h4>Maca latte</h4></div><span class="p">S/5.00</span></div>
+  </div>
+
+  <div class="panel-menu" id="chaufa">
+    <div class="m-item"><div><h4>Chaufa Clásico</h4><small>pollo + tortilla + cebolla china</small></div><span class="p">S/10.00</span></div>
+    <div class="m-item"><div><h4>Chaufa "Doble Cerebral"</h4><small>pollo + res, porción generosa</small></div><span class="p">S/13.00</span></div>
+    <div class="m-item"><div><h4>Chaufa Desencajado ⚡</h4><small>con papas crocantes encima, sí: fuera de la caja</small></div><span class="p">S/14.00</span></div>
+  </div>
+
+  <div class="panel-menu" id="combos">
+    <div class="m-item"><div><h4>Combo "Sin Filtro"</h4><small>café fuerte + papas</small></div><span class="p">S/8.00</span></div>
+    <div class="m-item"><div><h4>Combo "Explota tu Mente"</h4><small>papas con topping loco + frappé pequeño</small></div><span class="p">S/10.90</span></div>
+    <div class="m-item"><div><h4>Combo "Sobrevive el Parcial"</h4><small>café grande + frappé + combo papas</small></div><span class="p">S/13.00</span></div>
+    <div class="m-item"><div><h4>Combo "Doble Cerebral"</h4><small>2 frappés + 1 papa grande para compartir</small></div><span class="p">S/18.90</span></div>
+  </div>
+  <p class="note">* Precios de referencia tomados del documento maestro de carta. Jugos y chaufas: precios propuestos, pendientes de confirmación final.</p>
+</section>
+
+<!-- ═════════ PROMOS ═════════ -->
+<section class="on-dark" id="promos">
+  <div class="reveal"><span class="kicker">// Promos recurrentes</span><h2>SIEMPRE HAY UN PRETEXTO</h2></div>
+  <div class="promos">
+    <div class="promo reveal" style="--d:.05s"><span class="day">LUNES</span><h3>Lunes Estudiante</h3><p>20% off con carnet UNASAM</p></div>
+    <div class="promo reveal" style="--d:.1s"><span class="day">MIÉRCOLES</span><h3>Miércoles Combo</h3><p>Dúos a S/2.00</p></div>
+    <div class="promo reveal" style="--d:.15s"><span class="day">VIERNES</span><h3>Viernes Happy</h3><p>Tríos con papa chica gratis</p></div>
+    <div class="promo reveal" style="--d:.2s"><span class="day">4–6 PM</span><h3>Happy Hour</h3><p>Frappés al 30% off</p></div>
+    <div class="promo reveal" style="--d:.25s"><span class="day">CADA 26</span><h3>Día de Poder</h3><p>Promoción sorpresa del mes, revelada ese día ⚡</p></div>
+  </div>
+</section>
+
+<!-- ═════════ REGISTRO ═════════ -->
+<section id="registro">
+  <div class="reg">
+    <div class="reveal">
       <div class="ticket" aria-hidden="true">
         <h3>DESENCAJADO</h3>
         <p>PAPAS Y CAFÉ<br>"Mentes diferentes,<br>ideas extraordinarias."</p>
         <div class="cupon"><b>FRAPPÉ GRATIS</b><small>PARA LOS PRIMEROS INSCRITOS</small></div>
       </div>
     </div>
-    <div>
+    <div class="reveal" style="--d:.1s">
       <span class="kicker">// Pre-apertura</span>
-      <h2>REGÍSTRATE PARA LA APERTURA</h2>
-      <p class="pitch">Déjanos tus datos y te avisamos primero — antes que nadie — cuándo abrimos y qué promo de lanzamiento tenemos preparada.</p>
-
-      <div class="card">
-        <form id="form" novalidate>
-          <div class="field">
-            <label for="f-nombre">Nombre completo</label>
-            <input type="text" id="f-nombre" name="nombre" autocomplete="name" required minlength="2" maxlength="100">
-            <span class="err" id="err-nombre"></span>
-          </div>
-          <div class="field">
-            <label for="f-telefono">Teléfono (celular)</label>
-            <input type="tel" id="f-telefono" name="telefono" autocomplete="tel" placeholder="9XXXXXXXX" required inputmode="numeric">
-            <span class="hint">Celular peruano de 9 dígitos, empieza con 9.</span>
-            <span class="err" id="err-telefono"></span>
-          </div>
-          <div class="field">
-            <label for="f-dni">DNI</label>
-            <input type="text" id="f-dni" name="dni" placeholder="12345678" required inputmode="numeric" maxlength="8">
-            <span class="hint">8 dígitos, sin puntos ni espacios.</span>
-            <span class="err" id="err-dni"></span>
-          </div>
-          <div class="field">
-            <div class="radios">
-              <span style="font-weight:700">¿Eres estudiante UNASAM?</span>
-              <label><input type="radio" name="unasam" value="Sí" checked> Sí</label>
-              <label><input type="radio" name="unasam" value="No"> No</label>
-            </div>
-          </div>
-          <button class="btn" type="submit" id="submit-btn">Quiero mi lugar 🧠</button>
-        </form>
-        <div class="msg" id="msg"></div>
-      </div>
+      <h2>SÉ DE LOS PRIMEROS EN PROBARLO.</h2>
+      <p style="line-height:1.7;max-width:56ch">Nos abrimos oficialmente el <b>29 de octubre</b>. Regístrate y te avisamos primero — antes que nadie — cuándo abrimos, qué promo de lanzamiento tenemos preparada, y te reservamos un lugar en la primera tanda del <b>Frappé de Lúcuma gratis</b> para los primeros inscritos.</p>
+      <form id="form" novalidate>
+        <div class="field">
+          <label for="f-nombre">Nombre completo</label>
+          <input type="text" id="f-nombre" name="nombre" autocomplete="name" required minlength="2" maxlength="100">
+          <span class="err" id="err-nombre"></span>
+        </div>
+        <div class="field">
+          <label for="f-telefono">Teléfono (celular)</label>
+          <input type="tel" id="f-telefono" name="telefono" autocomplete="tel" placeholder="9XXXXXXXX" required inputmode="numeric">
+          <span class="hint">Celular peruano de 9 dígitos, empieza con 9.</span>
+          <span class="err" id="err-telefono"></span>
+        </div>
+        <div class="field">
+          <label for="f-dni">DNI</label>
+          <input type="text" id="f-dni" name="dni" placeholder="12345678" required inputmode="numeric" maxlength="8">
+          <span class="hint">8 dígitos, sin puntos ni espacios.</span>
+          <span class="err" id="err-dni"></span>
+        </div>
+        <div class="radios">
+          <span style="font-weight:700">¿Eres estudiante UNASAM?</span>
+          <label><input type="radio" name="unasam" value="Sí" checked> Sí</label>
+          <label><input type="radio" name="unasam" value="No"> No</label>
+        </div>
+        <button class="btn btn-primary" type="submit" id="submit-btn">Quiero mi lugar 🧠</button>
+      </form>
+      <div class="msg" id="msg"></div>
     </div>
   </div>
 </section>
 
+<!-- ═════════ UBICACIÓN ═════════ -->
+<section class="on-dark" id="ubicacion">
+  <div class="reveal"><span class="kicker">// Ubicación y contacto</span><h2>TE ESPERAMOS EN HUARAZ</h2></div>
+  <div class="ubi">
+    <div class="ubi-card reveal" style="--d:.05s"><h3>📍 DIRECCIÓN</h3><p><b>Av. Centenario, Huaraz, Áncash</b><br>frente a la UNASAM</p></div>
+    <div class="ubi-card reveal" style="--d:.1s"><h3>🕐 HORARIO</h3><p><b>Lun – Sáb:</b> 7:00 AM – 9:00 PM<br><b>Dom:</b> 8:00 AM – 8:00 PM</p></div>
+    <div class="ubi-card reveal" style="--d:.15s"><h3>✉️ CONTACTO</h3><p><b>desencajado.huaraz@gmail.com</b><br>WhatsApp pedidos: muy pronto 📲</p></div>
+  </div>
+</section>
+</main>
+
 <footer>
-  ☕ DESENCAJADO — Papas y Café · Pensando fuera de la caja · Apertura 29 oct 2026 · © 2026
+  <span class="fl-logo">DESENCAJADO <b>— PAPAS Y CAFÉ</b></span>
+  <div class="socials">
+    <a href="#" >Instagram @desencajado.huaraz</a>
+    <a href="#">TikTok</a>
+    <a href="#">Facebook</a>
+  </div>
+  <span>☕ Pensando fuera de la caja · Apertura 29 oct 2026 · © 2026</span>
 </footer>
+
+<div id="toast">🧠 ¡Listo! Ya estás en la lista. Nos vemos el 29 de octubre.</div>
 
 <!-- ═══ POPUP: promoción activa ═══ -->
 <div class="modal-backdrop" id="promo-popup">
@@ -261,8 +588,8 @@
       <p class="vigencia" id="popup-vigencia"></p>
       <div id="popup-chips"></div>
       <div class="actions">
-        <button class="btn ghost small" id="popup-close-btn">Cerrar</button>
-        <a class="btn small" href="/cuenta.html" id="popup-cta-btn">Canjear en mi cuenta</a>
+        <button class="btn btn-ghost" style="padding:.55rem 1.2rem" id="popup-close-btn">Cerrar</button>
+        <a class="btn btn-primary" style="padding:.55rem 1.2rem" href="/cuenta.html" id="popup-cta-btn">Canjear en mi cuenta</a>
       </div>
     </div>
   </div>
@@ -274,6 +601,9 @@ function escapeHtml(value){
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[c]));
 }
+/* ═══ NAV ═══ */
+const hdr=document.getElementById('hdr');
+addEventListener('scroll',()=>hdr.classList.toggle('scrolled',scrollY>10),{passive:true});
 
 /* ═══ COUNTDOWN a apertura (29 oct 2026, 9:00 AM Perú) ═══ */
 const target=new Date('2026-10-29T09:00:00-05:00').getTime();
@@ -286,6 +616,64 @@ function tick(){
   document.getElementById('cd-s').textContent=pad(Math.floor(d/1e3)%60);
 }
 tick(); setInterval(tick,1000);
+
+/* ═══ SCRAMBLE tagline ═══ */
+const tag=document.getElementById('tagline'), TXT='Acá nadie es raro. Todos somos desencajados.';
+const CH='!<>-_/[]{}=+*^?#🧠'; let fr=0;
+const scr=setInterval(()=>{
+  tag.innerHTML=[...TXT].map((c,i)=>c===' '?' ':(i<fr/2.5?c:CH[Math.random()*CH.length|0])).join('');
+  if(fr/2.5>TXT.length){clearInterval(scr);tag.innerHTML='Acá nadie es raro. <b>Todos somos desencajados.</b>';}
+  fr++;
+},34);
+
+/* ═══ TABS menú ═══ */
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel-menu').forEach(p=>p.classList.remove('show'));
+  b.classList.add('active'); document.getElementById(b.dataset.t).classList.add('show');
+}));
+
+/* ═══ REVEAL ═══ */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target);}}),{threshold:.15});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* ═══ TILT cards ═══ */
+document.querySelectorAll('.n-card,.promo,.m-item').forEach(c=>{
+  c.addEventListener('pointermove',e=>{
+    const r=c.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;
+    c.style.transform=`perspective(800px) rotateY(${x*8}deg) rotateX(${y*-8}deg) translateY(-6px)`;
+  });
+  c.addEventListener('pointerleave',()=>c.style.transform='');
+});
+
+/* ═══ PARALLAX mascot ═══ */
+const hero=document.querySelector('.hero'), scene=document.querySelector('.scene svg');
+hero.addEventListener('pointermove',e=>{
+  const r=hero.getBoundingClientRect();
+  const x=(e.clientX-r.left)/r.width*2-1, y=(e.clientY-r.top)/r.height*2-1;
+  scene.style.transform=`translate(${x*14}px,${y*10}px)`;
+});
+
+/* ═══ CANVAS partículas (colores de marca) + glow ═══ */
+const cv=document.getElementById('stars'),ctx=cv.getContext('2d');
+let W,H,P=[],mx=innerWidth/2,my=innerHeight/2,gx=mx,gy=my;
+const COLS=['255,198,26','30,111,204','214,33,143','26,26,26'];
+const rs=()=>{W=cv.width=innerWidth;H=cv.height=innerHeight};rs();addEventListener('resize',rs);
+addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY});
+P=Array.from({length:Math.min(80,innerWidth/16|0)},()=>({x:Math.random()*W,y:Math.random()*H,
+  vx:(Math.random()-.5)*.45,vy:(Math.random()-.5)*.45,r:Math.random()*2+.7,c:COLS[Math.random()*COLS.length|0]}));
+const glow=document.getElementById('glow');
+(function loop(){
+  ctx.clearRect(0,0,W,H);
+  for(const p of P){p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fillStyle=`rgba(${p.c},.4)`;ctx.fill();}
+  for(let i=0;i<P.length;i++)for(let j=i+1;j<P.length;j++){
+    const dx=P[i].x-P[j].x,dy=P[i].y-P[j].y,d=dx*dx+dy*dy;
+    if(d<12100){ctx.strokeStyle=`rgba(30,111,204,${.15*(1-d/12100)})`;ctx.beginPath();
+      ctx.moveTo(P[i].x,P[i].y);ctx.lineTo(P[j].x,P[j].y);ctx.stroke();}}
+  gx+=(mx-gx)*.08;gy+=(my-gy)*.08;glow.style.left=gx+'px';glow.style.top=gy+'px';
+  requestAnimationFrame(loop);
+})();
 
 /* ═══ CONTADOR de suscriptores ═══ */
 async function loadCount(){
@@ -300,10 +688,11 @@ async function loadCount(){
 }
 loadCount();
 
-/* ═══ VALIDACIÓN + ENVÍO del formulario ═══ */
-const form = document.getElementById('form');
-const msg = document.getElementById('msg');
-const submitBtn = document.getElementById('submit-btn');
+/* ═══ VALIDACIÓN + ENVÍO del formulario de registro ═══ */
+const toast=document.getElementById('toast');
+const form=document.getElementById('form');
+const msg=document.getElementById('msg');
+const submitBtn=document.getElementById('submit-btn');
 
 function setError(field, text){
   document.getElementById(`err-${field}`).textContent = text || '';
@@ -359,6 +748,8 @@ form.addEventListener('submit', async (e) => {
       form.reset();
       form.querySelector('input[name="unasam"][value="Sí"]').checked = true;
       loadCount();
+      toast.classList.add('show');
+      setTimeout(()=>toast.classList.remove('show'),3500);
     } else if(data.errors){
       Object.entries(data.errors).forEach(([field, text]) => setError(field, text));
       showMsg('error', 'Revisa los campos marcados.');
