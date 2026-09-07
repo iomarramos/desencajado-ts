@@ -99,6 +99,84 @@ integraciones es necesaria para que el resto de la app funcione: si faltan
 las variables, el botón/las notificaciones simplemente no aparecen (el
 backend responde con un error claro si se llama igual al endpoint).
 
+### Ruta completa: cuenta de Google Wallet Issuer + service account
+
+Son dos consolas de Google distintas (la de Wallet Business y la de Cloud) y
+hay que conectarlas entre sí — el paso que más se olvida es el 4 (autorizar
+la service account dentro de la cuenta Issuer), sin eso la API responde 403
+aunque las credenciales estén bien copiadas.
+
+1. **Crear la cuenta de Issuer** — entra a la
+   [Google Pay & Wallet Console](https://pay.google.com/business/console/)
+   con la cuenta de Google que va a administrar el programa de fidelidad del
+   negocio, y solicita acceso a **Google Wallet API** (Passes → Wallet API →
+   "Get Started"/"Request access"). Al aprobarse te da un **Issuer ID**
+   numérico (ej. `3388000000012345678`) — ese es tu
+   `GOOGLE_WALLET_ISSUER_ID`. Mientras la cuenta no esté aprobada para
+   producción, las clases/objetos que crees quedan en `UNDER_REVIEW` (así
+   está seteado `reviewStatus` en `src/auth/googleWallet.ts`), pero ya
+   podés probar el flujo completo con tus propias cuentas de prueba.
+
+2. **Crear (o reusar) un proyecto en Google Cloud** — en
+   [Google Cloud Console](https://console.cloud.google.com/), crea un
+   proyecto nuevo o usa el mismo que ya tengas para el login con Google
+   (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`).
+
+3. **Habilitar la Google Wallet API** — dentro de ese proyecto, ve a
+   *APIs & Services → Library*, busca **"Google Wallet API"** y presiona
+   *Enable*.
+
+4. **Crear la service account** — *APIs & Services → Credentials* (o
+   *IAM & Admin → Service Accounts*) → *Create Service Account*. No
+   necesita ningún rol de IAM especial en el proyecto de Cloud; el permiso
+   real se lo das en el paso 6, dentro de la cuenta Issuer.
+
+5. **Generar la clave JSON** — dentro de la service account recién creada,
+   pestaña *Keys* → *Add Key* → *Create new key* → tipo **JSON**. Descarga
+   el archivo: trae los campos `client_email` y `private_key` que
+   necesitas más abajo. Guárdalo en un lugar seguro (o bórralo del disco
+   una vez copiados los dos valores) — nunca lo subas al repo.
+
+6. **Autorizar la service account dentro de la cuenta Issuer** — de vuelta
+   en [Google Pay & Wallet Console](https://pay.google.com/business/console/),
+   ve a la sección de tu cuenta Issuer → *Users* (o *Communications* según
+   la versión de la consola) → agrega el **email de la service account**
+   (el mismo `client_email` del JSON, termina en
+   `...gserviceaccount.com`) como usuario, con rol de **Admin** o
+   **Developer**. Sin este paso, la API rechaza cualquier llamada de esa
+   service account con 403 aunque el Issuer ID y las credenciales sean
+   correctos.
+
+7. **Completar las variables de entorno** con lo obtenido:
+
+   ```bash
+   GOOGLE_WALLET_ISSUER_ID=3388000000012345678          # paso 1
+   GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL=algo@tu-proyecto.iam.gserviceaccount.com   # "client_email" del JSON (paso 5)
+   GOOGLE_WALLET_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMII...\n-----END PRIVATE KEY-----\n"  # "private_key" del JSON, con los saltos de línea como \n literales
+   GOOGLE_WALLET_ORIGIN=https://tu-dominio-real.com     # sin slash final; debe ser EXACTO al origen desde donde se sirve la página con el botón
+   ```
+
+   El `private_key` del JSON trae saltos de línea reales (`\n` de verdad);
+   en el `.env` van como los dos caracteres `\` y `n` (no un salto de línea
+   real) — `src/auth/googleWallet.ts` los convierte de vuelta al leer la
+   variable. Si copias el JSON completo en un editor y pegas el valor de
+   `private_key` tal cual (con comillas), normalmente ya viene así.
+
+8. **Reiniciar el servidor** (`npm run build && npm start`, o reconstruir
+   el contenedor Docker si corre ahí) — `googleWallet.isConfigured()` pasa
+   a `true` recién cuando las cuatro variables (`ISSUER_ID`,
+   `SERVICE_ACCOUNT_EMAIL`, `PRIVATE_KEY`, `ORIGIN`) están presentes, y
+   solo se leen al arrancar el proceso.
+
+**Para actualizar credenciales más adelante** (rotar la clave, cambiar de
+service account, mover el sitio a otro dominio): repite el paso 5 (generar
+una clave JSON nueva; las viejas se pueden revocar desde la misma consola de
+Cloud sin tocar el Issuer ID) o el paso 7 (si solo cambia el dominio,
+actualiza `GOOGLE_WALLET_ORIGIN` para que coincida exactamente con el nuevo
+origen) y reinicia el servidor — no hace falta tocar la cuenta Issuer de
+nuevo salvo que cambies de service account, en cuyo caso repite también el
+paso 6 con el email nuevo.
+
 ## Ejecutar en local
 
 ```bash
