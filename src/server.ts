@@ -2,8 +2,10 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { Worker } from 'node:worker_threads';
 import type { PushSubscriptionDbRow } from './db';
 const {
+  limaToday,
   addSubscriber, dniExists, getCount, listSubscribers,
   upsertGoogleUser, getUserById, getUserByEmail, getUserByReferralCode, setReferredBy,
   setUserContactInfo, setUserBirthdate, grantBirthdayBonusIfDue, setTotpSecret, enableTotp, markWalletSaved, listWalletSavedUserIds,
@@ -30,6 +32,7 @@ const totp = require('./auth/totp');
 const push = require('./auth/push');
 const googleWallet = require('./auth/googleWallet');
 const { checkRateLimit } = require('./auth/rateLimit');
+const { getClientIp } = require('./auth/clientIp');
 
 type Req = http.IncomingMessage;
 type Res = http.ServerResponse;
@@ -151,17 +154,30 @@ function sendJson(res: Res, statusCode: number, payload: unknown, extraHeaders: 
 function readBody(req: Req, maxBytes = 10_000): Promise<string> {
   return new Promise((resolve, reject) => {
     let size = 0;
+    let rejected = false;
     const chunks: Buffer[] = [];
     req.on('data', (chunk: Buffer) => {
       size += chunk.length;
       if (size > maxBytes) {
-        reject(new Error('PAYLOAD_TOO_LARGE'));
-        req.destroy();
+        // Ya no vale la pena guardar más (por eso se deja de acumular en
+        // `chunks`, así la memoria no crece sin límite), pero el request y
+        // la respuesta comparten el mismo socket TCP: si se llama
+        // req.destroy() aquí mismo, mata el socket antes de que el 413 de
+        // abajo alcance a salir y el cliente solo ve la conexión cortada
+        // ("Failed to fetch"), no el mensaje de error. En vez de eso se
+        // sigue drenando el resto del body (sin guardarlo) para que la
+        // conexión quede en un estado consistente y la respuesta sí salga.
+        if (!rejected) {
+          rejected = true;
+          reject(new Error('PAYLOAD_TOO_LARGE'));
+        }
         return;
       }
       chunks.push(chunk);
     });
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('end', () => {
+      if (!rejected) resolve(Buffer.concat(chunks).toString('utf8'));
+    });
     req.on('error', reject);
   });
 }
@@ -218,17 +234,6 @@ function validateContactInfo({ dni, telefono }: { dni?: unknown; telefono?: unkn
   }
 
   return { errors, value: { dni: cleanDni, telefono: cleanTelefono } };
-}
-
-// El primer IP de X-Forwarded-For (si hay un proxy/reverse-proxy delante,
-// como en el despliegue con Docker detrás de nginx/Caddy); si no, la
-// conexión directa. No se valida el proxy en sí (más allá del alcance de
-// esta app), así que en un despliegue público real ese header solo debe
-// confiarse si viene de una red/proxy propios.
-function getClientIp(req: Req): string {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (forwarded) return String(forwarded).split(',')[0].trim();
-  return req.socket.remoteAddress || 'unknown';
 }
 
 function rateLimited(req: Req, res: Res, routeKey: string, { max, windowMs }: { max: number; windowMs: number }): boolean {
@@ -719,6 +724,7 @@ const PROMO_REDEEM_ERRORS: Record<string, string> = {
   PROMOTION_NOT_STARTED: 'Esta promoción todavía no empieza.',
   PROMOTION_EXPIRED: 'Esta promoción ya venció.',
   CODE_EXHAUSTED: 'Este código ya alcanzó su límite de usos.',
+  ALREADY_REDEEMED: 'Ya canjeaste un código de esta promoción antes.',
 };
 
 async function handlePromotionRedeem(req: Req, res: Res): Promise<void> {
@@ -1081,10 +1087,13 @@ async function activatePromotion(promotion: PromotionLike): Promise<{ pushSent: 
 
 // Programación por día: si starts_at todavía no llegó, la promoción queda
 // guardada pero sin avisarle a nadie hasta que runPromotionScheduler la
-// recoja (ver el arranque del servidor, más abajo).
+// recoja (ver el arranque del servidor, más abajo). Se compara contra
+// limaToday() (hora de Huaraz), no contra el UTC de Date#toISOString():
+// una promo programada para "mañana" entre las 19:00 y medianoche hora
+// Perú ya caería en el día siguiente en UTC y se activaría de inmediato.
 function isReadyToActivate(promotion: PromotionLike): boolean {
   if (!promotion.starts_at) return true;
-  return String(promotion.starts_at).slice(0, 10) <= new Date().toISOString().slice(0, 10);
+  return String(promotion.starts_at).slice(0, 10) <= limaToday();
 }
 
 async function runPromotionScheduler(): Promise<void> {
@@ -1510,7 +1519,13 @@ async function handleProfileFieldsSubmit(req: Req, res: Res): Promise<void> {
 // ───────────────────────── administrador: exportar CSV ─────────────────────────
 
 function csvEscape(value: unknown): string {
-  const str = value === null || value === undefined ? '' : String(value);
+  let str = value === null || value === undefined ? '' : String(value);
+  // Fórmula CSV/Excel: un campo que empieza con =, +, -, @ (o tab/CR) se
+  // interpreta como fórmula al abrir el export en Excel/Sheets — un nombre
+  // como "=cmd|'/c calc'!A1" (llegado, p. ej., de un login de Google) se
+  // ejecutaría apenas el admin abra el archivo. Anteponer una comilla
+  // simple fuerza a que se lea como texto plano, como recomienda OWASP.
+  if (/^[=+\-@\t\r]/.test(str)) str = `'${str}`;
   return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 }
 
@@ -1528,9 +1543,37 @@ function sendCsv(res: Res, filename: string, csv: string): void {
   res.end('﻿' + csv);
 }
 
-function handleAdminExportUsers(req: Req, res: Res): void {
+const EXPORT_WORKER_PATH = path.join(__dirname, 'workers', 'exportWorker.js');
+
+// Corre la consulta pesada (miles de filas, sin límite) en su propio
+// worker_thread con una conexión SQLite de solo lectura aparte — ver el
+// comentario en workers/exportWorker.ts sobre por qué: node:sqlite es
+// síncrono y bloquearía TODO el proceso (incluidas las conexiones SSE de
+// otros clientes) durante el tiempo que tarde el export.
+function runExportQuery(kind: 'users' | 'purchases' | 'referrals'): Promise<Record<string, unknown>[]> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(EXPORT_WORKER_PATH, { workerData: { kind } });
+    worker.once('message', (msg: { ok: boolean; rows?: Record<string, unknown>[]; error?: string }) => {
+      if (msg.ok) resolve(msg.rows || []);
+      else reject(new Error(msg.error || 'Error desconocido exportando.'));
+      worker.terminate();
+    });
+    worker.once('error', (err) => {
+      reject(err);
+      worker.terminate();
+    });
+  });
+}
+
+async function handleAdminExportUsers(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
-  const csv = toCsv(adminAllUsers(), [
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await runExportQuery('users');
+  } catch {
+    return sendJson(res, 500, { ok: false, error: 'No se pudo generar el export.' });
+  }
+  const csv = toCsv(rows, [
     { key: 'name', label: 'Nombre' },
     { key: 'email', label: 'Email' },
     { key: 'dni', label: 'DNI' },
@@ -1545,9 +1588,15 @@ function handleAdminExportUsers(req: Req, res: Res): void {
   sendCsv(res, 'usuarios.csv', csv);
 }
 
-function handleAdminExportPurchases(req: Req, res: Res): void {
+async function handleAdminExportPurchases(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
-  const csv = toCsv(adminAllPurchases(), [
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await runExportQuery('purchases');
+  } catch {
+    return sendJson(res, 500, { ok: false, error: 'No se pudo generar el export.' });
+  }
+  const csv = toCsv(rows, [
     { key: 'created_at', label: 'Fecha' },
     { key: 'user_name', label: 'Cliente' },
     { key: 'user_email', label: 'Email' },
@@ -1558,9 +1607,15 @@ function handleAdminExportPurchases(req: Req, res: Res): void {
   sendCsv(res, 'compras.csv', csv);
 }
 
-function handleAdminExportReferrals(req: Req, res: Res): void {
+async function handleAdminExportReferrals(req: Req, res: Res): Promise<void> {
   if (!isAuthorizedAdmin(req)) return sendJson(res, 401, { ok: false, error: 'No autorizado.' });
-  const csv = toCsv(adminAllReferrals(), [
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await runExportQuery('referrals');
+  } catch {
+    return sendJson(res, 500, { ok: false, error: 'No se pudo generar el export.' });
+  }
+  const csv = toCsv(rows, [
     { key: 'name', label: 'Usuario' },
     { key: 'email', label: 'Email' },
     { key: 'referrer_name', label: 'Referido por' },

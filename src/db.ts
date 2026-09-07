@@ -2,6 +2,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
+import { ADMIN_USERS_QUERY, ADMIN_PURCHASES_QUERY, ADMIN_REFERRALS_QUERY } from './adminExportQueries';
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 // DB_FILE permite apuntar a otra base (ej. una temporal en los tests) sin
@@ -11,6 +12,26 @@ const DB_PATH = process.env.DB_FILE || path.join(DATA_DIR, 'suscripciones.sqlite
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 const db = new DatabaseSync(DB_PATH);
+
+// El local está en Huaraz (Perú, UTC-5 todo el año, sin horario de verano),
+// pero tanto SQLite ('now', 'date(...)') como Date#toISOString() trabajan
+// en UTC. Comparar contra esos directamente adelanta cualquier corte "por
+// día" (scheduler de promociones, bono de cumpleaños) hasta 5 horas: entre
+// las 19:00 y medianoche hora Perú, el día UTC ya es "mañana". limaToday()
+// da la fecha real vista desde Huaraz para esas comparaciones.
+const APP_TIMEZONE = 'America/Lima';
+const limaTodayFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: APP_TIMEZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+function limaToday(): string {
+  return limaTodayFormatter.format(new Date());
+}
+function limaMonthDay(): string {
+  return limaToday().slice(5);
+}
 
 // WAL: permite que las lecturas sigan corriendo mientras hay una escritura
 // en curso, en vez de bloquearse entre sí (el modo por defecto de SQLite).
@@ -255,10 +276,32 @@ ensureColumn('products', 'member_price', 'REAL');
 ensureColumn('users', 'birthdate', 'TEXT');
 ensureColumn('users', 'last_birthday_bonus_year', 'INTEGER');
 
+// Denormalizado a propósito: promotion_redemptions solo guardaba
+// promotion_code_id, así que no había forma de expresar "una vez por
+// PROMOCIÓN" (en vez de "una vez por CÓDIGO") con un UNIQUE — una
+// promoción con varios códigos (una por sucursal/tanda) dejaba que el
+// mismo cliente canjeara uno de cada una, o incluso el mismo código
+// repetidas veces, agotando el cupo pensado para varios clientes distintos.
+// Se agrega la columna y se rellena desde promotion_codes para las filas
+// que ya existían.
+if (ensureColumn('promotion_redemptions', 'promotion_id', 'INTEGER')) {
+  db.exec(`
+    UPDATE promotion_redemptions
+    SET promotion_id = (
+      SELECT promotion_id FROM promotion_codes WHERE promotion_codes.id = promotion_redemptions.promotion_code_id
+    )
+    WHERE promotion_id IS NULL
+  `);
+}
+
 // Único entre quienes ya lo llenaron: SQLite no deja agregar UNIQUE en un
 // ALTER TABLE ADD COLUMN, así que va como índice parcial aparte. Permite
 // múltiples NULL (usuarios que aún no completaron su perfil).
 db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_dni ON users(dni) WHERE dni IS NOT NULL');
+
+// Un cliente no puede canjear más de un código de la MISMA promoción,
+// sin importar cuántos códigos/sucursales tenga esa promoción.
+db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_promo_redemptions_user_promo ON promotion_redemptions(promotion_id, user_id)');
 
 db.exec('CREATE INDEX IF NOT EXISTS idx_purchases_user ON purchases(user_id)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_ledger_user ON points_ledger(user_id)');
@@ -493,12 +536,14 @@ const setUserBirthdateStmt = db.prepare('UPDATE users SET birthdate = ? WHERE id
 // Atómico a propósito (como claimSpinStmt): revisa "¿hoy es su cumpleaños y
 // no se le pagó ya este año?" y marca el año dentro de la misma sentencia,
 // así que dos /api/me casi simultáneos el día del cumpleaños no pagan el
-// bono dos veces.
+// bono dos veces. El "hoy" (año y mes-día) se pasa como parámetro
+// (limaToday()/limaMonthDay(), en JS) en vez de usar 'now' de SQLite, que
+// es UTC y adelanta/atrasa el corte del día hasta 5 horas respecto a Huaraz.
 const grantBirthdayBonusStmt = db.prepare(`
-  UPDATE users SET last_birthday_bonus_year = CAST(strftime('%Y', 'now') AS INTEGER)
+  UPDATE users SET last_birthday_bonus_year = ?
   WHERE id = ? AND birthdate IS NOT NULL
-    AND strftime('%m-%d', birthdate) = strftime('%m-%d', 'now')
-    AND (last_birthday_bonus_year IS NULL OR last_birthday_bonus_year < CAST(strftime('%Y', 'now') AS INTEGER))
+    AND strftime('%m-%d', birthdate) = ?
+    AND (last_birthday_bonus_year IS NULL OR last_birthday_bonus_year < ?)
 `);
 const setReferredByStmt = db.prepare('UPDATE users SET referred_by = ? WHERE id = ? AND referred_by IS NULL');
 const deleteAllSessionsForUserStmt = db.prepare('DELETE FROM sessions WHERE user_id = ?');
@@ -578,7 +623,8 @@ function setUserBirthdate(userId: number, birthdate: string): void {
 // y no se le pagó ya este año, le da BIRTHDAY_BONUS_POINTS una sola vez.
 function grantBirthdayBonusIfDue(userId: number): { granted: boolean; points: number } {
   if (BIRTHDAY_BONUS_POINTS <= 0) return { granted: false, points: 0 };
-  const info = grantBirthdayBonusStmt.run(userId);
+  const currentYear = Number(limaToday().slice(0, 4));
+  const info = grantBirthdayBonusStmt.run(currentYear, userId, limaMonthDay(), currentYear);
   if (info.changes === 0) return { granted: false, points: 0 };
   insertLedgerStmt.run(userId, BIRTHDAY_BONUS_POINTS, '🎂 Bono de cumpleaños');
   return { granted: true, points: BIRTHDAY_BONUS_POINTS };
@@ -1170,10 +1216,13 @@ const markPromotionPushedStmt = db.prepare('UPDATE promotions SET pushed_to = ? 
 // Programación por día (no por hora todavía): date() normaliza tanto el
 // formato "YYYY-MM-DD HH:MM:SS" de SQLite como el "YYYY-MM-DDTHH:MM" que
 // manda el <input type="datetime-local">, así que compara solo el día.
+// "Hoy" se pasa como parámetro (limaToday(), calculada en JS) en vez de
+// usar date('now') de SQLite, que es UTC y adelanta la activación hasta 5
+// horas respecto al día real en Huaraz.
 const listPromotionsReadyToActivateStmt = db.prepare(
   `SELECT * FROM promotions
    WHERE active = 1 AND activated_at IS NULL
-     AND (starts_at IS NULL OR date(starts_at) <= date('now'))`
+     AND (starts_at IS NULL OR date(starts_at) <= date(?))`
 );
 const markPromotionActivatedStmt = db.prepare("UPDATE promotions SET activated_at = datetime('now') WHERE id = ?");
 
@@ -1203,7 +1252,10 @@ const claimPromotionCodeUseStmt = db.prepare(
    WHERE id = ? AND (max_uses IS NULL OR uses_count < max_uses)`
 );
 const insertPromotionRedemptionStmt = db.prepare(
-  'INSERT INTO promotion_redemptions (promotion_code_id, user_id) VALUES (?, ?)'
+  'INSERT INTO promotion_redemptions (promotion_code_id, promotion_id, user_id) VALUES (?, ?, ?)'
+);
+const deletePromotionRedemptionStmt = db.prepare(
+  'DELETE FROM promotion_redemptions WHERE promotion_code_id = ? AND user_id = ?'
 );
 
 function generatePublicationCode(promotionId: number | bigint): string {
@@ -1289,9 +1341,33 @@ function redeemPromotionCode(
   if (promotion.starts_at && new Date(promotion.starts_at) > now) throw new Error('PROMOTION_NOT_STARTED');
   if (promotion.ends_at && new Date(promotion.ends_at) < now) throw new Error('PROMOTION_EXPIRED');
 
+  // La reserva (INSERT) va ANTES de tocar uses_count a propósito: un
+  // cliente solo puede canjear un código de esta promoción una vez, sin
+  // importar cuántos códigos/sucursales tenga — lo hace cumplir el índice
+  // UNIQUE(promotion_id, user_id) de la tabla. Si se reclamara el uso
+  // primero y recién después se rechazara el duplicado, un reintento del
+  // mismo cliente (o dos códigos de la misma promo canjeados casi a la
+  // vez) le habría quitado un cupo real a otro cliente sin dejar ningún
+  // canje válido detrás. El resto de esta función es síncrono sin ningún
+  // `await` de por medio, así que ninguna otra request puede intercalarse
+  // entre el INSERT y el UPDATE de abajo — no hace falta una transacción
+  // SQL explícita para que el par se comporte como atómico.
+  try {
+    insertPromotionRedemptionStmt.run(promoCode.id, promoCode.promotion_id, userId);
+  } catch (err) {
+    if (String((err as Error).message).includes('UNIQUE constraint failed')) {
+      throw new Error('ALREADY_REDEEMED');
+    }
+    throw err;
+  }
+
   const claimed = claimPromotionCodeUseStmt.run(promoCode.id);
-  if (claimed.changes === 0) throw new Error('CODE_EXHAUSTED');
-  insertPromotionRedemptionStmt.run(promoCode.id, userId);
+  if (claimed.changes === 0) {
+    // El cupo se agotó justo antes de que este canje llegara a reclamarlo:
+    // se deshace la reserva para no dejar un canje sin un uso real detrás.
+    deletePromotionRedemptionStmt.run(promoCode.id, userId);
+    throw new Error('CODE_EXHAUSTED');
+  }
   // Solo se devuelve el código canjeado, no el resto de códigos de la
   // promoción (podrían ser de otra sucursal/tanda y no le corresponden a este cliente).
   return {
@@ -1526,7 +1602,7 @@ function markPromotionPushed(id: number, count: number): void {
 // Promociones activas, con fecha de inicio ya cumplida (o sin fecha = ya
 // mismo) que todavía no se activaron — para el scheduler.
 function listPromotionsReadyToActivate(): PromotionHydrated[] {
-  return (listPromotionsReadyToActivateStmt.all() as unknown as Promotion[]).map(hydratePromotion);
+  return (listPromotionsReadyToActivateStmt.all(limaToday()) as unknown as Promotion[]).map(hydratePromotion);
 }
 
 function markPromotionActivated(id: number): void {
@@ -1776,17 +1852,7 @@ export interface AdminUserRow {
   signup_source: string;
 }
 
-const adminUsersStmt = db.prepare(
-  `SELECT u.id, u.name, u.email, u.avatar_url, u.totp_enabled, u.created_at,
-          u.dni, u.telefono, u.signup_source,
-          u.referred_by, u.family_group_id,
-          COALESCE((SELECT SUM(delta) FROM points_ledger l WHERE l.user_id = u.id), 0) AS puntos,
-          COALESCE((SELECT SUM(monto) FROM purchases p WHERE p.user_id = u.id), 0) AS total_gastado,
-          COALESCE((SELECT COUNT(*) FROM purchases p WHERE p.user_id = u.id), 0) AS num_compras
-   FROM users u
-   ORDER BY u.created_at DESC
-   LIMIT ? OFFSET ?`
-);
+const adminUsersStmt = db.prepare(`${ADMIN_USERS_QUERY} LIMIT ? OFFSET ?`);
 const adminUsersCountStmt = db.prepare('SELECT COUNT(*) AS total FROM users');
 const adminUsersSearchStmt = db.prepare(`
   SELECT u.id, u.name, u.email, u.avatar_url, u.totp_enabled, u.created_at,
@@ -1833,16 +1899,7 @@ export interface AdminReferralRow {
   puntos: number;
 }
 
-const adminReferralsStmt = db.prepare(
-  `SELECT u.id, u.name, u.email, u.created_at AS fecha_registro,
-          r.id AS referrer_id, r.name AS referrer_name, r.email AS referrer_email,
-          COALESCE((SELECT COUNT(*) FROM purchases p WHERE p.user_id = u.id), 0) AS num_compras,
-          COALESCE((SELECT SUM(delta) FROM points_ledger l WHERE l.user_id = u.id), 0) AS puntos
-   FROM users u
-   JOIN users r ON r.id = u.referred_by
-   ORDER BY u.created_at DESC
-   LIMIT ? OFFSET ?`
-);
+const adminReferralsStmt = db.prepare(`${ADMIN_REFERRALS_QUERY} LIMIT ? OFFSET ?`);
 const adminReferralsCountStmt = db.prepare('SELECT COUNT(*) AS total FROM users WHERE referred_by IS NOT NULL');
 const adminReferralsSearchStmt = db.prepare(`
   SELECT u.id, u.name, u.email, u.created_at AS fecha_registro,
@@ -1939,13 +1996,7 @@ export interface AdminPurchaseRow {
   user_email: string;
 }
 
-const adminPurchasesStmt = db.prepare(
-  `SELECT p.id, p.monto, p.producto, p.puntos, p.created_at, u.name AS user_name, u.email AS user_email
-   FROM purchases p
-   JOIN users u ON u.id = p.user_id
-   ORDER BY p.id DESC
-   LIMIT ? OFFSET ?`
-);
+const adminPurchasesStmt = db.prepare(`${ADMIN_PURCHASES_QUERY} LIMIT ? OFFSET ?`);
 const adminPurchasesCountStmt = db.prepare('SELECT COUNT(*) AS total FROM purchases');
 const adminPurchasesSearchStmt = db.prepare(`
   SELECT p.id, p.monto, p.producto, p.puntos, p.created_at, u.name AS user_name, u.email AS user_email
@@ -2101,18 +2152,6 @@ const trafficByWeekdayStmt = db.prepare(
 
 const WEEKDAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-function adminAllUsers(): AdminUserRow[] {
-  return adminUsersStmt.all(-1, 0) as unknown as AdminUserRow[];
-}
-
-function adminAllPurchases(): AdminPurchaseRow[] {
-  return adminPurchasesStmt.all(-1, 0) as unknown as AdminPurchaseRow[];
-}
-
-function adminAllReferrals(): AdminReferralRow[] {
-  return adminReferralsStmt.all(-1, 0) as unknown as AdminReferralRow[];
-}
-
 export interface TrafficStats {
   byHour: { hora: number; total: number; monto: number }[];
   byWeekday: { dia: number; nombre: string; total: number; monto: number }[];
@@ -2135,6 +2174,8 @@ function adminTrafficStats(): TrafficStats {
 }
 
 module.exports = {
+  // fecha/hora
+  limaToday,
   // suscripciones pre-apertura
   addSubscriber,
   dniExists,
@@ -2246,7 +2287,4 @@ module.exports = {
   adminRecurringPromoCustomers,
   adminTrafficStats,
   adminSignupSourceCounts,
-  adminAllUsers,
-  adminAllPurchases,
-  adminAllReferrals,
 };
