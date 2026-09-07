@@ -133,18 +133,53 @@ test('promociones: código de publicación autogenerado y edición', () => {
 });
 
 test('canje: valida código inexistente, vigencia y límite de usos', () => {
-  const user = makeUser('Redimidor');
+  // Tres clientes DISTINTOS a propósito: la regla "un cliente, una vez por
+  // promoción" (ver el test de más abajo) es aparte del límite de usos del
+  // código en sí, así que este test no puede probar el límite reusando el
+  // mismo cliente — el segundo intento fallaría por ALREADY_REDEEMED antes
+  // de llegar a CODE_EXHAUSTED.
+  const userA = makeUser('Redimidor A');
+  const userB = makeUser('Redimidor B');
+  const userC = makeUser('Redimidor C');
   const promo = db.createPromotion({ title: 'Con canje', body: 'x' });
   db.addPromotionCode(promo.id, { code: 'LIMITADO', label: 'Centro', maxUses: 2 });
 
-  assert.throws(() => db.redeemPromotionCode('NOEXISTE', user.id), /CODE_NOT_FOUND/);
+  assert.throws(() => db.redeemPromotionCode('NOEXISTE', userA.id), /CODE_NOT_FOUND/);
 
-  const r1 = db.redeemPromotionCode('limitado', user.id);
+  const r1 = db.redeemPromotionCode('limitado', userA.id);
   assert.equal(r1.code.usesRemaining, 1);
   assert.equal(r1.promotion.codes, undefined); // no debe filtrar la lista de códigos
 
-  db.redeemPromotionCode('LIMITADO', user.id);
-  assert.throws(() => db.redeemPromotionCode('LIMITADO', user.id), /CODE_EXHAUSTED/);
+  db.redeemPromotionCode('LIMITADO', userB.id);
+  assert.throws(() => db.redeemPromotionCode('LIMITADO', userC.id), /CODE_EXHAUSTED/);
+});
+
+test('canje: un mismo cliente no puede canjear dos veces la misma promoción', () => {
+  const user = makeUser('Cliente único');
+  // Simula una promoción con un código por sucursal (ej. "Tanda 1"): el
+  // cupo de cada código es para clientes DISTINTOS, no para que uno solo
+  // se quede con varios.
+  const promo = db.createPromotion({ title: 'Tanda multi-sucursal', body: 'x' });
+  db.addPromotionCode(promo.id, { code: 'CENTRO', label: 'Centro', maxUses: 10 });
+  db.addPromotionCode(promo.id, { code: 'NORTE', label: 'Norte', maxUses: 10 });
+
+  db.redeemPromotionCode('CENTRO', user.id);
+  // Mismo código otra vez: rechazado.
+  assert.throws(() => db.redeemPromotionCode('CENTRO', user.id), /ALREADY_REDEEMED/);
+  // Código DISTINTO de la MISMA promoción: también rechazado.
+  assert.throws(() => db.redeemPromotionCode('NORTE', user.id), /ALREADY_REDEEMED/);
+
+  // El intento rechazado no debe haber gastado un cupo real del código.
+  const promoAfter = db.adminListPromotions({ limit: 50 }).items.find((p: { id: number }) => p.id === promo.id);
+  const centro = promoAfter.codes.find((c: { code: string }) => c.code === 'CENTRO');
+  const norte = promoAfter.codes.find((c: { code: string }) => c.code === 'NORTE');
+  assert.equal(centro.uses_count, 1);
+  assert.equal(norte.uses_count, 0);
+
+  // Un cliente DISTINTO sí puede canjear (misma promoción, otro código).
+  const otherUser = makeUser('Otro cliente');
+  const r2 = db.redeemPromotionCode('NORTE', otherUser.id);
+  assert.equal(r2.code.usesRemaining, 9);
 });
 
 test('canje: rechaza promoción fuera de vigencia', () => {
@@ -312,9 +347,16 @@ test('cumpleaños: rechaza fechas inválidas', () => {
 });
 
 test('cumpleaños: da el bono solo el día correcto y solo una vez al año', () => {
-  const today = new Date();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const dd = String(today.getDate()).padStart(2, '0');
+  // "Hoy" se calcula en hora de Lima (América/Lima, UTC-5), igual que
+  // grantBirthdayBonusIfDue en producción — no en la zona horaria de la
+  // máquina que corre el test, que puede ser UTC y estar hasta 5 horas
+  // adelantada respecto al día real en Huaraz.
+  const [, mm, dd] = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date()).split('-');
 
   const birthdayUser = makeUser('Cumple Hoy');
   db.setUserBirthdate(birthdayUser.id, `1995-${mm}-${dd}`);
